@@ -311,6 +311,19 @@ async function nachrichtFuer(userId: string, tz: string): Promise<Nachricht | nu
   return null;
 }
 
+// ---------- Neustart: tägliche, neutrale Check-in-Erinnerung ----------
+async function neustartErinnerung(userId, tz) {
+  const { data: prof } = await sb.from('profiles').select('settings').eq('id', userId).maybeSingle();
+  const st = prof?.settings || {};
+  if (!st.nst_aktiv || st.nst_push_aus) return null;
+  const j = jetztIn(tz);
+  if (j.stunde !== Number(st.nst_push_stunde ?? 21)) return null;
+  const { data: ci } = await sb.from('events').select('starts_at').eq('user_id', userId).eq('app', 'neustart').eq('kind', 'checkin')
+    .gte('starts_at', new Date(Date.now() - 2 * 864e5).toISOString());
+  if ((ci || []).some((c) => lokalDatum(c.starts_at, tz) === j.heute)) return null;
+  return { title: 'Neustart', body: 'Zeit für deinen kurzen Check-in ✨', url: '../neustart/', tag: 'nst-checkin' };
+}
+
 // ---------- Einstieg ----------
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
@@ -348,6 +361,8 @@ Deno.serve(async (req) => {
       for (const [userId, liste] of proUser) {
         const n = await nachrichtFuer(userId, liste[0].zeitzone || 'Europe/Berlin');
         if (n) gesendet += await senden(liste, n);
+        const n2 = await neustartErinnerung(userId, liste[0].zeitzone || 'Europe/Berlin');
+        if (n2) gesendet += await senden(liste, n2);
       }
       return json({ nutzer: proUser.size, gesendet });
     }

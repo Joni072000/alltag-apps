@@ -1,0 +1,74 @@
+/* Neustart – ergänzt ../gym/style.css */
+:root { --gruen: #3DDC84; --tuerkis: #4FD1C5; }
+
+.streak-hero { text-align: center; padding: 22px 16px 18px; background: radial-gradient(120% 120% at 50% 0%, rgba(61,220,132,.18), transparent 65%), var(--card); }
+.streak-ring { position: relative; width: 190px; height: 190px; margin: 0 auto 6px; }
+.streak-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.streak-ring .mitte { position: absolute; inset: 0; display: grid; place-items: center; }
+.streak-ring .tage { font-size: 58px; font-weight: 900; letter-spacing: -.04em; line-height: 1; }
+.streak-ring .lbl { font-size: 13px; color: var(--muted); font-weight: 600; }
+.timer { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text); margin-top: 4px; }
+.meilenstein { margin-top: 10px; font-size: 14px; }
+
+.stats3 .stat b { font-size: 20px; }
+.aufgabe { display: flex; gap: 12px; align-items: center; }
+.aufgabe .haken { width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--line); background: none; display: grid; place-items: center; flex: none; color: transparent; font-size: 18px; }
+.aufgabe .haken.an { background: var(--gruen); border-color: var(--gruen); color: #062814; }
+.grund { font-size: 16px; font-weight: 700; line-height: 1.35; }
+.leise { background: none; border: 0; color: var(--muted); font-weight: 600; font-size: 13px; text-decoration: underline; padding: 8px; display: block; margin: 18px auto 0; }
+
+.sos { position: fixed; right: max(16px, calc(50% - 264px)); bottom: calc(var(--nav-h) + 16px + var(--safe-b)); z-index: 22; width: 64px; height: 64px; border-radius: 50%; border: 0; background: linear-gradient(135deg, #FF4D6D, #E0365A); color: #fff; font-weight: 900; font-size: 15px; letter-spacing: .04em; box-shadow: 0 12px 30px -8px rgba(255,77,109,.9); }
+
+/* Notfall */
+.notfall { position: fixed; inset: 0; z-index: 60; background: radial-gradient(120% 80% at 50% 20%, #13213A, var(--bg)); overflow-y: auto; animation: fade .2s; }
+.notfall-inner { max-width: 520px; margin: 0 auto; padding: calc(20px + var(--safe-t)) 18px calc(30px + var(--safe-b)); text-align: center; }
+.atem { position: relative; width: 220px; height: 220px; margin: 18px auto 10px; display: grid; place-items: center; }
+.atem .kreis { position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(circle, rgba(79,209,197,.55), rgba(79,209,197,.08) 70%); transform: scale(.55); transition: transform 4s ease-in-out; }
+.atem .kreis.gross { transform: scale(1); }
+.atem .wort { position: relative; font-size: 22px; font-weight: 800; }
+.atem .sek { position: relative; display: block; font-size: 13px; color: var(--muted); font-weight: 600; }
+.vorschlag { background: var(--card); border-radius: 14px; padding: 14px; margin-top: 8px; font-weight: 700; text-align: left; display: flex; gap: 10px; align-items: center; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
+.chips button { border: 1.5px solid var(--line); background: var(--card); border-radius: 99px; padding: 7px 12px; font-weight: 700; font-size: 13px; }
+.chips button.on { border-color: var(--tuerkis); background: rgba(79,209,197,.15); }
+
+/* Check-in */
+.skala { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.skala button { border: 1.5px solid var(--line); background: var(--card); border-radius: 12px; padding: 10px 0; font-size: 22px; }
+.skala button.on { border-color: var(--accent); background: rgba(124,92,255,.18); }
+.skala.vier { grid-template-columns: repeat(4, 1fr); }
+.skala.vier button { font-size: 13px; font-weight: 700; padding: 12px 0; }
+
+/* Plan */
+.phase { margin: 22px 0 8px; }
+.phase h3 { font-size: 15px; font-weight: 800; }
+.plan-tag { display: flex; gap: 12px; align-items: center; padding: 10px 12px; background: var(--card); border-radius: 12px; margin-bottom: 6px; }
+.plan-tag .nr { width: 34px; height: 34px; border-radius: 10px; background: var(--card2); display: grid; place-items: center; font-weight: 800; font-size: 13px; flex: none; }
+.plan-tag.fertig .nr { background: var(--gruen); color: #062814; }
+.plan-tag.heute { outline: 2px solid var(--accent); }
+.plan-tag.zukunft { opacity: .45; }
+
+/* Verlauf */
+.heat { display: grid; grid-template-columns: repeat(12, 1fr); grid-template-rows: repeat(7, auto); grid-auto-flow: column; gap: 4px; }
+.heat span { aspect-ratio: 1; border-radius: 5px; background: var(--card2); }
+.heat span.sauber { background: var(--gruen); }
+.heat span.rueck { background: var(--danger); }
+.heat span.vor { background: transparent; border: 1px dashed var(--line); }
+.heat span.heute { outline: 2px solid var(--text); outline-offset: 1px; }
+.legende { display: flex; gap: 14px; justify-content: center; margin-top: 10px; font-size: 12px; color: var(--muted); }
+.legende i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.eintrag { padding: 12px 14px; background: var(--card); border-radius: 14px; margin-bottom: 8px; }
+.balken-zeile { display: grid; grid-template-columns: 110px 1fr 28px; gap: 8px; align-items: center; font-size: 13px; margin-bottom: 6px; }
+.balken-zeile div { height: 8px; background: var(--card2); border-radius: 99px; overflow: hidden; }
+.balken-zeile i { display: block; height: 100%; background: var(--accent2); border-radius: inherit; }
+
+/* PIN */
+.sperre { position: fixed; inset: 0; z-index: 200; background: var(--bg); display: grid; place-items: center; }
+.pin-punkte { display: flex; gap: 14px; justify-content: center; margin: 18px 0 26px; }
+.pin-punkte i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--muted); }
+.pin-punkte i.voll { background: var(--text); border-color: var(--text); }
+.pin-punkte.falsch { animation: wackeln .35s; }
+@keyframes wackeln { 25% { transform: translateX(-8px); } 75% { transform: translateX(8px); } }
+.tasten { display: grid; grid-template-columns: repeat(3, 72px); gap: 14px; justify-content: center; }
+.tasten button { width: 72px; height: 72px; border-radius: 50%; border: 0; background: var(--card); font-size: 26px; font-weight: 700; }
+.tasten button:empty { background: none; }
