@@ -515,7 +515,7 @@ $app.addEventListener('click', async (e) => {
   }
   if (a === 'push-an') {
     b.disabled = true; b.textContent = '…';
-    try { await push.aktivieren(); await core.updateSettings({ nst_push_aus: false }); S.pushAus = false; toast('Erinnerung aktiviert 🔔'); } catch (err) { toast(err.message, true); }
+    try { await push.aktivieren('neustart'); await core.updateSettings({ nst_push_aus: false }); S.pushAus = false; toast('Erinnerung aktiviert 🔔'); } catch (err) { toast(err.message, true); }
     render();
   }
   if (a === 'logout') core.logout();
@@ -551,6 +551,7 @@ async function init() {
     return;
   }
   $nav.classList.remove('hidden');
+  push.zuordnen('neustart');
   render();
 }
 

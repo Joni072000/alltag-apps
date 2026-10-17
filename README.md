@@ -18,6 +18,7 @@ Eigene Apps für den Alltag – einzeln nutzbar, aber über eine gemeinsame Supa
 ## Mitteilungen
 - `supabase/003_mitteilungen.sql` – Tabellen + stündlicher Zeitplan
 - `supabase/004_kalender_erinnerungen.sql` – Zeitplan alle 5 Minuten für Termin-Erinnerungen
+- `supabase/005_mitteilungen_pro_app.sql` – merkt sich pro Abo die App (keine doppelten Mitteilungen)
 - `supabase/functions/gym-push/index.ts` – Supabase Edge Function (JWT-Prüfung aus), verschickt Erinnerungen
 
 Läuft über GitHub Pages: `https://joni072000.github.io/alltag-apps/`

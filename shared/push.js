@@ -38,7 +38,25 @@ const b64 = (b) => {
   return Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 };
 
-export async function aktivieren() {
+/** Merkt sich, zu welcher App dieses Abo gehört (iPhone: jede Home-Bildschirm-App hat ein eigenes Abo) */
+export async function speichern(abo, app) {
+  const j = abo.toJSON();
+  const { data: alt } = await core.sb.from('push_subscriptions').select('apps').eq('endpoint', j.endpoint).maybeSingle();
+  const apps = [...new Set([...(alt?.apps || []), app])];
+  const zeile = {
+    endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth, apps,
+    zeitzone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Berlin', geraet: navigator.userAgent.slice(0, 150),
+  };
+  let { error } = await core.sb.from('push_subscriptions').upsert(zeile, { onConflict: 'endpoint' });
+  if (error && /apps/.test(error.message)) {
+    // Spalte noch nicht angelegt (005_mitteilungen_pro_app.sql fehlt) – ohne App-Zuordnung speichern
+    delete zeile.apps;
+    ({ error } = await core.sb.from('push_subscriptions').upsert(zeile, { onConflict: 'endpoint' }));
+  }
+  if (error) throw new Error(error.message);
+}
+
+export async function aktivieren(app = 'gym') {
   if (!unterstuetzt()) throw new Error(istIOS && !alsAppGestartet ? 'Auf dem iPhone: App erst zum Home-Bildschirm hinzufügen und von dort öffnen.' : 'Dieser Browser unterstützt keine Mitteilungen.');
   if (await Notification.requestPermission() !== 'granted') throw new Error('Mitteilungen wurden nicht erlaubt.');
   const reg = await bereit(await registrierung());
@@ -47,20 +65,25 @@ export async function aktivieren() {
   const { publicKey } = await r.json();
   let abo = await reg.pushManager.getSubscription();
   abo = abo || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64(publicKey) });
-  const j = abo.toJSON();
-  const { error } = await core.sb.from('push_subscriptions').upsert({
-    endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth,
-    zeitzone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Berlin', geraet: navigator.userAgent.slice(0, 150),
-  }, { onConflict: 'endpoint' });
-  if (error) throw new Error(error.message);
+  await speichern(abo, app);
 }
 
-export async function testSenden() {
+/** Beim Öffnen einer App still zuordnen, falls dieses Gerät schon ein Abo hat */
+export async function zuordnen(app) {
+  try {
+    if (!unterstuetzt() || Notification.permission !== 'granted') return;
+    const reg = await navigator.serviceWorker.getRegistration(SW_SCOPE);
+    const abo = reg && await reg.pushManager.getSubscription();
+    if (abo) await speichern(abo, app);
+  } catch { /* egal */ }
+}
+
+export async function testSenden(app = 'gym') {
   const { data } = await core.sb.auth.getSession();
   const r = await fetch(PUSH_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', apikey: core.SUPABASE_KEY, Authorization: `Bearer ${data.session?.access_token}` },
-    body: JSON.stringify({ modus: 'test' }),
+    body: JSON.stringify({ modus: 'test', app }),
   });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(j.fehler || 'Funktion nicht erreichbar');

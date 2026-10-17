@@ -419,7 +419,7 @@ $app.addEventListener('click', async (e) => {
   if (a === 'eigen-weg') { cfg.eigene = cfg.eigene.filter((x) => x.id !== id); await speichereCfg(); render(); }
   if (a === 'push-an') {
     b.disabled = true; b.textContent = '…';
-    try { await push.aktivieren(); await core.updateSettings({ tw_push_aus: false, tw_aktiv: true, tw_anzahl: cfg.anzahl }); P.aus = false; toast('Mitteilungen aktiviert 🔔'); } catch (err) { toast(err.message, true); }
+    try { await push.aktivieren('tagwerk'); await core.updateSettings({ tw_push_aus: false, tw_aktiv: true, tw_anzahl: cfg.anzahl }); P.aus = false; toast('Mitteilungen aktiviert 🔔'); } catch (err) { toast(err.message, true); }
     render();
   }
   if (a === 'logout') core.logout();
@@ -464,6 +464,7 @@ async function init() {
     return;
   }
   $nav.classList.remove('hidden');
+  push.zuordnen('tagwerk');
   await timerPruefen();
   render();
   await autoAbhaken();

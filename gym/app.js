@@ -7,6 +7,7 @@ import * as core from '../shared/core.js';
 import { UEBUNGEN, MUSKELN, RAENGE, e1rm, effGewicht, rangFuer, levelAusXp, rangBadge } from './daten.js';
 import { berechneMaskottchen, maskottchenSvg, spruch, futterVon } from './maskottchen.js';
 import { muskelkarteSvg } from './muskelkarte.js';
+import * as pushShared from '../shared/push.js';
 import { vorkommen, lokalStr } from '../kalender/termine.js';
 
 const APP = 'gym';
@@ -674,13 +675,7 @@ async function pushAn(btn) {
       if (!passt) { await abo.unsubscribe(); abo = null; }
     }
     abo = abo || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: base64zuBytes(publicKey) });
-    const j = abo.toJSON();
-    const { error } = await core.sb.from('push_subscriptions').upsert({
-      endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth,
-      zeitzone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Berlin',
-      geraet: navigator.userAgent.slice(0, 150),
-    }, { onConflict: 'endpoint' });
-    if (error) throw new Error(/push_subscriptions/.test(error.message) ? 'Führe zuerst 003_mitteilungen.sql in Supabase aus.' : error.message);
+    await pushShared.speichern(abo, 'gym');
     await core.updateSettings({ gym_push_aus: false });
     toast('Mitteilungen aktiviert 🔔');
   } catch (err) {
@@ -708,7 +703,7 @@ async function pushTest(btn) {
     const r = await fetch(PUSH_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', apikey: core.SUPABASE_KEY, Authorization: `Bearer ${data.session?.access_token}` },
-      body: JSON.stringify({ modus: 'test' }),
+      body: JSON.stringify({ modus: 'test', app: 'gym' }),
     });
     const j = await r.json().catch(() => ({}));
     if (!r.ok) throw new Error(j.fehler || 'Funktion nicht erreichbar');
@@ -1374,6 +1369,7 @@ async function init() {
   minimiert = !!aktiv;
   $nav.classList.remove('hidden');
   swRegistrierung();
+  pushShared.zuordnen('gym');
   hashOeffnen();
   render();
   if (aktiv) renderMini();

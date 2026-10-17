@@ -203,7 +203,7 @@ const CORS = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
 
-type Sub = { id: string; user_id: string; endpoint: string; p256dh: string; auth: string; zeitzone: string };
+type Sub = { id: string; user_id: string; endpoint: string; p256dh: string; auth: string; zeitzone: string; apps?: string[]; created_at?: string };
 type Nachricht = { title: string; body: string; url?: string; tag?: string };
 
 // ---------- Schlüssel (werden beim ersten Aufruf automatisch erzeugt) ----------
@@ -223,8 +223,22 @@ async function config(): Promise<Record<string, string>> {
   return c;
 }
 
-async function senden(subs: Sub[], n: Nachricht) {
+/**
+ * Nur an die App schicken, zu der die Mitteilung gehört.
+ * iPhone: jede Home-Bildschirm-App hat ein eigenes Abo -> nur das passende.
+ * Android/PC: ein Abo für alle Apps -> es enthält alle App-Namen.
+ * Gibt es kein passendes Abo, geht die Mitteilung an genau ein Abo (das neueste).
+ */
+function fuerApp(subs: Sub[], app: string): Sub[] {
+  const passend = subs.filter((s) => (s.apps || []).includes(app));
+  if (passend.length) return passend;
+  const sortiert = [...subs].sort((a, b) => String(b.created_at || '').localeCompare(String(a.created_at || '')));
+  return sortiert.slice(0, 1);
+}
+
+async function senden(alleSubs: Sub[], n: Nachricht, app = 'gym') {
   let ok = 0;
+  const subs = fuerApp(alleSubs, app);
   for (const s of subs) {
     try {
       await webpush.sendNotification(
@@ -357,6 +371,7 @@ Deno.serve(async (req) => {
     if (modus === 'key') return json({ publicKey: c.vapid_public });
 
     if (modus === 'test') {
+      const zielApp = String(body.app || 'gym');
       const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
       const { data: u, error } = await sb.auth.getUser(token);
       if (error || !u.user) return json({ fehler: 'Nicht angemeldet' }, 401);
@@ -364,8 +379,8 @@ Deno.serve(async (req) => {
       const { data: prof } = await sb.from('profiles').select('settings').eq('id', u.user.id).maybeSingle();
       const name = prof?.settings?.gym_maskottchen_name || 'Pumpi';
       const ok = await senden((subs || []) as Sub[], {
-        title: 'Mitteilungen funktionieren ✅', body: `${name} sagt Hallo! 👋`, url: './', tag: 'gym-test',
-      });
+        title: 'Mitteilungen funktionieren ✅', body: zielApp === 'gym' ? `${name} sagt Hallo! 👋` : 'Test erfolgreich 👋', url: zielApp === 'gym' ? './' : `../${zielApp}/`, tag: 'test',
+      }, zielApp);
       return json({ gesendet: ok });
     }
 
@@ -380,11 +395,11 @@ Deno.serve(async (req) => {
       let gesendet = 0;
       for (const [userId, liste] of proUser) {
         const n = await nachrichtFuer(userId, liste[0].zeitzone || 'Europe/Berlin');
-        if (n) gesendet += await senden(liste, n);
+        if (n) gesendet += await senden(liste, n, 'gym');
         const n2 = await neustartErinnerung(userId, liste[0].zeitzone || 'Europe/Berlin');
-        if (n2) gesendet += await senden(liste, n2);
+        if (n2) gesendet += await senden(liste, n2, 'neustart');
         const n3 = await tagwerkErinnerung(userId, liste[0].zeitzone || 'Europe/Berlin');
-        if (n3) gesendet += await senden(liste, n3);
+        if (n3) gesendet += await senden(liste, n3, 'tagwerk');
       }
       return json({ nutzer: proUser.size, gesendet });
     }
@@ -422,7 +437,7 @@ Deno.serve(async (req) => {
             gesendet += await senden(liste, {
               title: `📅 ${e.title}`, body: `${wann}${t.ort ? ` · 📍 ${t.ort}` : ''}`,
               url: '../kalender/', tag: `termin-${e.id}-${tag}`,
-            });
+            }, 'kalender');
           }
         }
       }

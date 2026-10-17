@@ -429,12 +429,12 @@ $app.addEventListener('click', async (e) => {
   if (a === 'logout') core.logout();
   if (a === 'push-an') {
     b.disabled = true; b.textContent = '…';
-    try { await push.aktivieren(); toast('Mitteilungen aktiviert 🔔'); } catch (err) { toast(err.message, true); }
+    try { await push.aktivieren('kalender'); toast('Mitteilungen aktiviert 🔔'); } catch (err) { toast(err.message, true); }
     render();
   }
   if (a === 'push-test') {
     b.disabled = true;
-    try { const n = await push.testSenden(); toast(n ? 'Test gesendet 📬' : 'Kein Gerät gefunden – neu aktivieren', !n); } catch (err) { toast(err.message, true); }
+    try { const n = await push.testSenden('kalender'); toast(n ? 'Test gesendet 📬' : 'Kein Gerät gefunden – neu aktivieren', !n); } catch (err) { toast(err.message, true); }
     b.disabled = false;
   }
 });
@@ -476,6 +476,7 @@ async function init() {
     return;
   }
   $nav.classList.remove('hidden');
+  push.zuordnen('kalender');
   render();
 }
 
