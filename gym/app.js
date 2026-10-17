@@ -7,6 +7,7 @@ import * as core from '../shared/core.js';
 import { UEBUNGEN, MUSKELN, RAENGE, e1rm, effGewicht, rangFuer, levelAusXp, rangBadge } from './daten.js';
 import { berechneMaskottchen, maskottchenSvg, spruch, futterVon } from './maskottchen.js';
 import { muskelkarteSvg } from './muskelkarte.js';
+import { vorkommen, lokalStr } from '../kalender/termine.js';
 
 const APP = 'gym';
 const $app = document.getElementById('app');
@@ -21,6 +22,7 @@ let karteModus = 'erholung';          // Muskelkarte auf der Startseite
 let verlaufAnsicht = 'liste';         // 'liste' | 'rueckblick'
 let rbArt = 'woche', rbVersatz = 0;   // Rückblick
 let trainings = [];      // neueste zuerst
+let kalTermine = [];     // Termine aus dem Kalender (für „heute geplant“)
 let routinen = [];
 let eigene = [];
 let tab = 'start';
@@ -169,11 +171,12 @@ function letzteSaetze(exId) {
 
 // ---------- Daten laden / speichern ---------------------------
 async function ladeAlles() {
-  const [profil, tr, r, e] = await Promise.all([
+  const [profil, tr, r, e, kt] = await Promise.all([
     core.getProfile(),
     core.listEvents({ app: APP, kind: 'training' }),
     core.getAppData(APP, 'routinen', []),
     core.getAppData(APP, 'eigene_uebungen', []),
+    core.listEvents({ app: 'kalender', kind: 'termin', limit: 5000 }).catch(() => []),
   ]);
   const st = profil?.settings || {};
   S.name = st.name || '';
@@ -188,6 +191,7 @@ async function ladeAlles() {
   trainings = tr;
   routinen = r || [];
   eigene = e || [];
+  kalTermine = (kt || []).map((x) => ({ ...x.data, titel: x.title }));
   berechne();
 }
 
@@ -219,6 +223,7 @@ function seiteStart() {
     </div>
 
     ${maskottchenKarte()}
+    ${geplantKarte()}
 
     <div class="hero" style="margin-top:10px">
       <div class="card level-card">
@@ -290,6 +295,19 @@ function muskelSaetze(von, bis) {
   }
   for (const k in res) res[k] = Math.round(res[k] * 10) / 10;
   return res;
+}
+
+function geplantKarte() {
+  const heute = lokalStr(new Date());
+  const sport = vorkommen(kalTermine, heute, heute).filter((v) => v.termin.kategorie === 'sport');
+  if (!sport.length) return '';
+  const schonTrainiert = trainings.some((t) => lokalStr(new Date(t.starts_at)) === heute);
+  return `<a class="card row" href="../kalender/" style="margin-top:10px;text-decoration:none;color:inherit">
+    <span style="font-size:24px">🎯</span>
+    <div class="grow"><div class="muted small">Heute im Kalender geplant</div>
+      <b>${sport.map((v) => esc(v.termin.titel) + (v.termin.zeit ? ` · ${v.termin.zeit} Uhr` : '')).join(', ')}</b></div>
+    ${schonTrainiert ? '<span class="pill on">Erledigt ✓</span>' : '<span class="chev">›</span>'}
+  </a>`;
 }
 
 function maskottchenKarte() {

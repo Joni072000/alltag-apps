@@ -3,7 +3,9 @@
 // - GET ?modus=key      -> öffentlicher Schlüssel für die App
 // - POST {modus:"test"} -> Test-Mitteilung an das eigene Gerät (mit Login)
 // - POST {modus:"cron"} -> stündlich vom Zeitplan aufgerufen: Erinnerungen
+// - POST {modus:"kalender"} -> alle 5 Minuten: Termin-Erinnerungen
 // =============================================================
+// @ts-nocheck
 import webpush from 'npm:web-push@3.6.7';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
@@ -86,6 +88,108 @@ function hungerNachricht(m: any, name = 'Pumpi') {
   return { titel: `${name} hat Hunger 🍗`, text: `Seit ${m.tageOhne} Tagen kein Training. Zeit, ${name} zu füttern!` };
 }
 
+
+// ---------- Termine (Kopie aus kalender/termine.js – bei Änderungen beide anpassen) ----------
+const pad = (n) => String(n).padStart(2, '0');
+const dStr = (y, m, d) => `${y}-${pad(m)}-${pad(d)}`;
+const teile = (s) => s.split('-').map(Number);
+function plus(s, n) {
+  const [y, m, d] = teile(s);
+  const x = new Date(Date.UTC(y, m - 1, d + n));
+  return dStr(x.getUTCFullYear(), x.getUTCMonth() + 1, x.getUTCDate());
+}
+const wochentag = (s) => { const [y, m, d] = teile(s); return (new Date(Date.UTC(y, m - 1, d)).getUTCDay() + 6) % 7; }; // 0 = Mo
+const tageZwischen = (a, b) => { const [y1, m1, d1] = teile(a), [y2, m2, d2] = teile(b); return Math.round((Date.UTC(y2, m2 - 1, d2) - Date.UTC(y1, m1 - 1, d1)) / 864e5); };
+const lokalStr = (d) => dStr(d.getFullYear(), d.getMonth() + 1, d.getDate());
+
+/** Dauer eines Termins in Tagen (mehrtägig ganztägig), mind. 1 */
+const spanne = (t) => (t.ganztaegig && t.endDatum && t.endDatum > t.datum ? tageZwischen(t.datum, t.endDatum) + 1 : 1);
+
+/**
+ * Alle Starttage eines Termins zwischen von und bis (inklusive), als 'YYYY-MM-DD'.
+ * t: { datum, wiederholung: { art, bis, ausnahmen[] } }
+ */
+function starttage(t, von, bis) {
+  const w = t.wiederholung || { art: 'keine' };
+  const ende = w.bis && w.bis < bis ? w.bis : bis;
+  const aus = new Set(w.ausnahmen || []);
+  const res = [];
+  const lang = spanne(t) - 1;                       // mehrtägige Termine früher anfangen lassen
+  const ab = plus(von, -lang);
+  const add = (s) => { if (s >= ab && s <= ende && !aus.has(s)) res.push(s); };
+  if (t.datum > ende) return res;
+  switch (w.art) {
+    case 'taeglich':
+    case 'werktags': {
+      let s = t.datum > ab ? t.datum : ab;
+      for (; s <= ende; s = plus(s, 1)) if (w.art === 'taeglich' || wochentag(s) < 5) add(s);
+      break;
+    }
+    case 'woechentlich':
+    case 'zweiwoechentlich': {
+      const schritt = w.art === 'woechentlich' ? 7 : 14;
+      let s = t.datum;
+      if (s < ab) s = plus(s, Math.ceil(tageZwischen(s, ab) / schritt) * schritt);
+      for (; s <= ende; s = plus(s, schritt)) add(s);
+      break;
+    }
+    case 'monatlich': {
+      const [y0, m0, d0] = teile(t.datum);
+      for (let i = 0; i < 1200; i++) {
+        const y = y0 + Math.floor((m0 - 1 + i) / 12), m = ((m0 - 1 + i) % 12) + 1;
+        if (new Date(Date.UTC(y, m, 0)).getUTCDate() < d0) continue;   // z. B. 31. im Februar überspringen
+        const s = dStr(y, m, d0);
+        if (s > ende) break;
+        add(s);
+      }
+      break;
+    }
+    case 'jaehrlich': {
+      const [y0, m0, d0] = teile(t.datum);
+      const [yv] = teile(ab);
+      for (let y = Math.max(y0, yv - 1); ; y++) {
+        const s = m0 === 2 && d0 === 29 && new Date(Date.UTC(y, 1, 29)).getUTCMonth() !== 1 ? dStr(y, 2, 28) : dStr(y, m0, d0);
+        if (s > ende) break;
+        add(s);
+      }
+      break;
+    }
+    default: add(t.datum);
+  }
+  return res;
+}
+
+/** Vorkommen pro Kalendertag (mehrtägige Termine erscheinen an jedem Tag) */
+function vorkommen(termine, von, bis) {
+  const res = [];
+  for (const t of termine) {
+    const n = spanne(t);
+    for (const s of starttage(t, von, bis)) {
+      for (let i = 0; i < n; i++) {
+        const tag = plus(s, i);
+        if (tag >= von && tag <= bis) res.push({ termin: t, start: s, tag, teil: n > 1 ? { i, n } : null });
+      }
+    }
+  }
+  return res.sort((a, b) => a.tag.localeCompare(b.tag) || (b.termin.ganztaegig ? 1 : 0) - (a.termin.ganztaegig ? 1 : 0) || (a.termin.zeit || '').localeCompare(b.termin.zeit || ''));
+}
+
+
+/** Ortszeit (Datum + Uhrzeit in Zeitzone) -> Zeitstempel */
+function tzVersatz(ts, tz) {
+  const p = new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).formatToParts(new Date(ts));
+  const g = (t) => Number(p.find((x) => x.type === t).value);
+  return Date.UTC(g('year'), g('month') - 1, g('day'), g('hour'), g('minute'), g('second')) - ts;
+}
+function ortszeitZuMs(datum, zeit, tz) {
+  const [y, m, d] = datum.split('-').map(Number);
+  const [h, mi] = (zeit || '00:00').split(':').map(Number);
+  const grob = Date.UTC(y, m - 1, d, h, mi);
+  let ts = grob - tzVersatz(grob, tz);
+  const v2 = tzVersatz(ts, tz);
+  if (grob - v2 !== ts) ts = grob - v2;
+  return ts;
+}
 
 const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
   auth: { persistSession: false },
@@ -245,6 +349,48 @@ Deno.serve(async (req) => {
         const n = await nachrichtFuer(userId, liste[0].zeitzone || 'Europe/Berlin');
         if (n) gesendet += await senden(liste, n);
       }
+      return json({ nutzer: proUser.size, gesendet });
+    }
+
+    if (modus === 'kalender') {
+      if (req.headers.get('x-cron-secret') !== c.cron_secret) return json({ fehler: 'Nicht erlaubt' }, 401);
+      const jetzt = Date.now(), fenster = 10 * 60 * 1000;
+      const { data: subs } = await sb.from('push_subscriptions').select('*');
+      const proUser = new Map();
+      for (const s of subs || []) { if (!proUser.has(s.user_id)) proUser.set(s.user_id, []); proUser.get(s.user_id).push(s); }
+      let gesendet = 0;
+      for (const [userId, liste] of proUser) {
+        const tz = liste[0].zeitzone || 'Europe/Berlin';
+        const { data: termine } = await sb.from('events').select('id,title,data').eq('user_id', userId).eq('app', 'kalender').eq('kind', 'termin');
+        const heute = lokalDatum(new Date(), tz);
+        for (const e of termine || []) {
+          const t = e.data || {};
+          if (t.erinnerung == null || !t.datum) continue;
+          const ttz = t.tz || tz;
+          for (const tag of starttage(t, plus(heute, -1), plus(heute, 3))) {
+            const beginn = ortszeitZuMs(tag, t.ganztaegig ? '00:00' : t.zeit, ttz);
+            const erinnern = beginn - t.erinnerung * 60000;
+            if (erinnern > jetzt || erinnern <= jetzt - fenster) continue;
+            // doppelt senden verhindern
+            const { data: neu } = await sb.from('push_gesendet').upsert({ schluessel: `${e.id}|${tag}|${t.erinnerung}` }, { onConflict: 'schluessel', ignoreDuplicates: true }).select();
+            if (!neu?.length) continue;
+            let wann;
+            const tageBis = tageZwischen(heute, tag);
+            const tagText = tageBis === 0 ? 'Heute' : tageBis === 1 ? 'Morgen' : new Intl.DateTimeFormat('de-DE', { timeZone: ttz, weekday: 'long', day: 'numeric', month: 'long' }).format(new Date(beginn));
+            if (t.ganztaegig) wann = `${tagText} (ganztägig)`;
+            else {
+              const min = Math.round((beginn - jetzt) / 60000);
+              wann = min <= 1 ? `Jetzt · ${t.zeit} Uhr` : min < 120 ? `In ${min} Min. · ${t.zeit} Uhr` : `${tagText} um ${t.zeit} Uhr`;
+            }
+            gesendet += await senden(liste, {
+              title: `📅 ${e.title}`, body: `${wann}${t.ort ? ` · 📍 ${t.ort}` : ''}`,
+              url: '../kalender/', tag: `termin-${e.id}-${tag}`,
+            });
+          }
+        }
+      }
+      // Alte Einträge aufräumen
+      await sb.from('push_gesendet').delete().lt('created_at', new Date(jetzt - 4 * 864e5).toISOString());
       return json({ nutzer: proUser.size, gesendet });
     }
 

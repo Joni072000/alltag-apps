@@ -19,12 +19,15 @@ self.addEventListener('notificationclick', (e) => {
   const ziel = new URL(e.notification.data?.url || './', self.registration.scope).href;
   e.waitUntil((async () => {
     const fenster = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const zielOrdner = ziel.split('#')[0].replace(/[^/]*$/, '');
+    // 1. Ein Fenster der passenden App ist schon offen (z. B. Kalender)
     for (const f of fenster) {
-      if (f.url.startsWith(self.registration.scope)) {
-        if (f.url !== ziel && 'navigate' in f) await f.navigate(ziel);
+      if (f.url.startsWith(zielOrdner)) {
+        if (ziel.includes('#') && f.url !== ziel && 'navigate' in f) await f.navigate(ziel);
         return f.focus();
       }
     }
+    // 2. Sonst die App neu öffnen
     return self.clients.openWindow(ziel);
   })());
 });

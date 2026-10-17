@@ -1,0 +1,49 @@
+/* Kalender – ergänzt ../gym/style.css und ../kalorien/kalorien.css */
+.monat-kopf { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.monat-kopf h1 { flex: 1; font-size: 26px; font-weight: 800; text-transform: capitalize; }
+.heute-btn { border: 0; background: var(--card); border-radius: 10px; padding: 8px 12px; font-weight: 700; font-size: 13px; }
+
+.wt { display: grid; grid-template-columns: repeat(7, 1fr); text-align: center; font-size: 11px; font-weight: 700; color: var(--muted); margin-bottom: 4px; }
+.grid7 { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+.zelle { background: var(--card); border: 1.5px solid transparent; border-radius: 12px; min-height: 58px; padding: 5px 3px 4px; display: flex; flex-direction: column; align-items: center; gap: 3px; position: relative; }
+.zelle.fremd { opacity: .35; }
+.zelle.sel { border-color: var(--accent); background: rgba(124,92,255,.14); }
+.zelle .nr { font-size: 13px; font-weight: 700; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; }
+.zelle.heute .nr { background: var(--accent); color: #fff; }
+.zelle.feiertag .nr { color: var(--danger); }
+.zelle.heute.feiertag .nr { color: #fff; }
+.zelle.we .nr { color: var(--muted); }
+.punkte { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px; max-width: 100%; }
+.punkt { width: 6px; height: 6px; border-radius: 50%; }
+.zelle .gym { font-size: 10px; line-height: 1; }
+.zelle .balken { width: 100%; height: 4px; border-radius: 3px; }
+
+.tag-kopf { display: flex; align-items: baseline; justify-content: space-between; margin: 22px 0 10px; gap: 8px; }
+.tag-kopf h2 { font-size: 18px; font-weight: 800; }
+.feiertag-chip { display: inline-block; font-size: 12px; font-weight: 700; color: var(--danger); background: rgba(255,77,109,.12); padding: 3px 9px; border-radius: 99px; }
+
+.termin { display: flex; gap: 12px; align-items: stretch; padding: 12px 14px; background: var(--card); border-radius: 14px; width: 100%; border: 0; text-align: left; margin-bottom: 8px; }
+.termin .strich { width: 4px; border-radius: 4px; flex: none; }
+.termin .zeit { min-width: 50px; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.termin .zeit span { display: block; color: var(--muted); font-weight: 600; }
+.termin .was { flex: 1; min-width: 0; }
+.termin .was b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.termin.extern { background: var(--bg2); border: 1px dashed var(--line); text-decoration: none; color: inherit; }
+.leer-tag { color: var(--muted); padding: 14px 4px; font-size: 14px; }
+
+.woche-tag { margin-bottom: 14px; }
+.woche-tag h3 { font-size: 13px; font-weight: 700; color: var(--muted); margin: 0 0 6px; display: flex; gap: 8px; align-items: center; }
+.woche-tag.heute h3 { color: var(--accent2); }
+
+.fab { position: fixed; right: max(16px, calc(50% - 264px)); bottom: calc(var(--nav-h) + 16px + var(--safe-b)); z-index: 22; width: 58px; height: 58px; border-radius: 18px; border: 0; background: linear-gradient(135deg, var(--accent), #5B3FE0); color: #fff; font-size: 30px; font-weight: 500; box-shadow: 0 12px 30px -8px rgba(124,92,255,.9); display: grid; place-items: center; line-height: 1; }
+
+.kat-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.kat-chips button { border: 1.5px solid var(--line); background: var(--card); border-radius: 99px; padding: 7px 12px; font-weight: 700; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
+.kat-chips button i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.kat-chips button.on { border-color: var(--text); }
+.zeit-reihe { display: grid; grid-template-columns: 1fr 1fr; gap: 0 8px; }
+.zeit-reihe:not(.ganz) > label:first-child { grid-column: 1 / -1; }
+.zeit-reihe input, .portion-row input, .portion-row select { min-width: 0; }
+.monat-kopf h1.klein { font-size: 18px; }
+.field input[type="date"], .field input[type="time"] { min-height: 46px; }
+textarea { resize: vertical; }
