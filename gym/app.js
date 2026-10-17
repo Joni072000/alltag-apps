@@ -554,6 +554,7 @@ function seiteProfil() {
     <div class="card" id="push-karte"><div class="muted small">Wird geladen …</div></div>
 
     <div class="section-title">Konto</div>
+    <a class="list-item" href="../kalorien/" style="text-decoration:none;color:inherit"><span class="grow">🥗 Zum Kalorien-Tracker</span><span class="chev">›</span></a>
     <a class="list-item" href="../" style="text-decoration:none;color:inherit"><span class="grow">← Alle Apps</span></a>
     <button class="list-item" data-a="logout" style="color:var(--danger)"><span class="grow">Abmelden</span></button>
   `;

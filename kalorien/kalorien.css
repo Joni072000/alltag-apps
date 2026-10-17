@@ -1,0 +1,96 @@
+/* Kalorien-Tracker – ergänzt ../gym/style.css */
+:root { --kh: #5AB8FF; --eiweiss: #FF7A9A; --fett: #F5C542; --wasser: #4FA8FF; }
+.nav-3 { grid-template-columns: repeat(3, 1fr) !important; }
+
+/* Wochenleiste */
+.weekstrip { display: flex; align-items: center; gap: 4px; margin-bottom: 14px; }
+.weekstrip .days { flex: 1; display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.day { background: none; border: 0; padding: 6px 0; border-radius: 12px; display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--muted); font-size: 11px; font-weight: 700; }
+.day.sel { background: var(--card); color: var(--text); }
+.day.heute b { color: var(--accent2); }
+.day b { font-size: 14px; color: var(--text); }
+.day svg { width: 28px; height: 28px; }
+.weekstrip .icon-btn { width: 30px; height: 30px; font-size: 16px; }
+
+/* Übersicht mit Ring */
+.summary { padding: 18px 16px; background: radial-gradient(120% 120% at 50% 0%, rgba(124,92,255,.2), transparent 65%), var(--card); }
+.summary-top { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 6px; }
+.side { text-align: center; }
+.side b { display: block; font-size: 20px; font-weight: 800; }
+.side span { font-size: 12px; color: var(--muted); }
+.ring { position: relative; width: 150px; height: 150px; }
+.ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring .mitte { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; }
+.ring .mitte b { display: block; font-size: 30px; font-weight: 900; letter-spacing: -.03em; line-height: 1; }
+.ring .mitte span { font-size: 12px; color: var(--muted); }
+.ring .mitte.drueber b { color: var(--danger); }
+.makros { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 18px; }
+.makro span { display: block; font-size: 12px; color: var(--muted); font-weight: 600; }
+.makro .bar { height: 6px; border-radius: 99px; background: var(--card2); overflow: hidden; margin: 5px 0 4px; }
+.makro .bar i { display: block; height: 100%; border-radius: inherit; }
+.makro b { font-size: 13px; }
+
+/* Mahlzeiten */
+.meal { padding: 14px 14px 8px; }
+.meal-head { display: flex; align-items: center; gap: 12px; }
+.meal-icon { width: 42px; height: 42px; border-radius: 13px; background: var(--card2); display: grid; place-items: center; font-size: 20px; flex: none; }
+.meal-head h3 { font-size: 16px; font-weight: 800; }
+.add-btn { width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--accent); color: #fff; font-size: 24px; font-weight: 600; display: grid; place-items: center; flex: none; line-height: 1; }
+.add-btn.sm { width: 32px; height: 32px; font-size: 20px; background: var(--card2); color: var(--accent2); }
+.entry { display: flex; align-items: center; gap: 10px; padding: 10px 2px; border-top: 1px solid var(--line); width: 100%; background: none; border-left: 0; border-right: 0; border-bottom: 0; text-align: left; }
+.meal .entry:first-of-type { margin-top: 10px; }
+.entry .kc { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Wasser */
+.glaeser { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; margin-top: 12px; }
+.glas { aspect-ratio: 3/4; border: 2px solid var(--line); border-radius: 4px 4px 10px 10px; background: none; position: relative; overflow: hidden; padding: 0; }
+.glas::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: var(--wasser); transition: height .3s; }
+.glas.voll { border-color: var(--wasser); }
+.glas.voll::after { height: 78%; }
+.glas.naechstes { border-style: dashed; border-color: var(--wasser); }
+
+/* Hinzufügen-Sheet */
+.add-search { display: flex; gap: 8px; margin-bottom: 12px; }
+.add-search .search { flex: 1; }
+.scan-btn { flex: none; width: 48px; border-radius: 12px; border: 0; background: var(--accent); color: #fff; display: grid; place-items: center; }
+.scan-btn svg { width: 22px; height: 22px; }
+.food { display: flex; align-items: center; gap: 12px; padding: 10px 2px; border-bottom: 1px solid var(--line); }
+.food .info { flex: 1; min-width: 0; cursor: pointer; }
+.food .info b { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.food .bild { width: 40px; height: 40px; border-radius: 10px; object-fit: cover; background: var(--card2); flex: none; }
+.food .ph { width: 40px; height: 40px; border-radius: 10px; background: var(--card2); display: grid; place-items: center; flex: none; font-size: 18px; }
+.quelle { font-size: 10px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; padding: 2px 6px; border-radius: 5px; background: var(--card2); color: var(--muted); }
+.tabs-mini { display: flex; gap: 6px; margin-bottom: 8px; }
+.add-links { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 14px 0 4px; }
+.lade { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 13px; padding: 12px 2px; }
+.lade .spinner { width: 18px; height: 18px; border-width: 2px; }
+
+/* Portion */
+.portion-kcal { text-align: center; margin: 6px 0 14px; }
+.portion-kcal b { font-size: 44px; font-weight: 900; letter-spacing: -.03em; }
+.portion-row { display: grid; grid-template-columns: 1fr 1.3fr; gap: 8px; margin-bottom: 12px; }
+.portion-row input, .portion-row select { width: 100%; padding: 13px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--card); outline: none; font-weight: 700; }
+.portion-row input:focus, .portion-row select:focus { border-color: var(--accent); }
+.mini-makros { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.mini-makros div { background: var(--card); border-radius: 12px; padding: 10px; text-align: center; }
+.mini-makros b { display: block; font-size: 16px; }
+.mini-makros span { font-size: 11px; font-weight: 700; }
+.stern { background: none; border: 0; font-size: 24px; padding: 0 4px; color: var(--muted); }
+.stern.an { color: var(--fett); }
+.seg.seg4 button { padding: 9px 2px; font-size: 13px; }
+
+/* Scanner */
+.scanner { position: relative; border-radius: 16px; overflow: hidden; background: #000; aspect-ratio: 4/3; }
+.scanner video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.scanner .rahmen { position: absolute; left: 10%; right: 10%; top: 30%; bottom: 30%; border: 3px solid rgba(255,255,255,.85); border-radius: 14px; box-shadow: 0 0 0 999px rgba(0,0,0,.35); }
+.scanner .linie { position: absolute; left: 12%; right: 12%; height: 2px; background: var(--danger); top: 50%; animation: scan 1.6s ease-in-out infinite; box-shadow: 0 0 10px var(--danger); }
+@keyframes scan { 0%, 100% { transform: translateY(-40px); } 50% { transform: translateY(40px); } }
+.scan-status { text-align: center; margin: 10px 0; }
+
+/* Aktivität / Gewicht */
+.akt { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.akt:first-of-type { border-top: 0; }
+.akt .ico { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: rgba(124,92,255,.18); font-size: 19px; flex: none; }
+.gewicht-big { font-size: 30px; font-weight: 900; letter-spacing: -.03em; }
+.streak-pill { display: inline-flex; align-items: center; gap: 4px; padding: 6px 10px; border-radius: 99px; background: var(--card); font-weight: 800; font-size: 14px; }
+.ziel-zahl { font-size: 40px; font-weight: 900; letter-spacing: -.03em; line-height: 1.1; }
