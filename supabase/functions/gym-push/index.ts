@@ -324,6 +324,26 @@ async function neustartErinnerung(userId, tz) {
   return { title: 'Neustart', body: 'Zeit für deinen kurzen Check-in ✨', url: '../neustart/', tag: 'nst-checkin' };
 }
 
+// ---------- Tagwerk: morgens neue Aufgaben, abends Erinnerung ----------
+async function tagwerkErinnerung(userId, tz) {
+  const { data: prof } = await sb.from('profiles').select('settings').eq('id', userId).maybeSingle();
+  const st = prof?.settings || {};
+  if (!st.tw_aktiv || st.tw_push_aus) return null;
+  const j = jetztIn(tz);
+  if (j.stunde === Number(st.tw_push_morgen ?? 7)) {
+    return { title: 'Tagwerk ☀️', body: `Deine ${st.tw_anzahl || 5} Aufgaben für heute sind da. Pack's an!`, url: '../tagwerk/', tag: 'tw-morgen' };
+  }
+  if (j.stunde === Number(st.tw_push_abend ?? 20)) {
+    const { data: erl } = await sb.from('events').select('data').eq('user_id', userId).eq('app', 'tagwerk').eq('kind', 'erledigt')
+      .gte('starts_at', new Date(Date.now() - 2 * 864e5).toISOString());
+    const heute = (erl || []).filter((e) => e.data?.datum === j.heute && !e.data?.eigen).length;
+    const offen = Number(st.tw_anzahl || 5) - heute;
+    if (offen <= 0) return null;
+    return { title: 'Tagwerk', body: `Noch ${offen} ${offen === 1 ? 'Aufgabe' : 'Aufgaben'} offen – schaffst du ${offen === 1 ? 'sie' : 'sie'} noch? 💪`, url: '../tagwerk/', tag: 'tw-abend' };
+  }
+  return null;
+}
+
 // ---------- Einstieg ----------
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
@@ -363,6 +383,8 @@ Deno.serve(async (req) => {
         if (n) gesendet += await senden(liste, n);
         const n2 = await neustartErinnerung(userId, liste[0].zeitzone || 'Europe/Berlin');
         if (n2) gesendet += await senden(liste, n2);
+        const n3 = await tagwerkErinnerung(userId, liste[0].zeitzone || 'Europe/Berlin');
+        if (n3) gesendet += await senden(liste, n3);
       }
       return json({ nutzer: proUser.size, gesendet });
     }
