@@ -5,12 +5,21 @@
 // =============================================================
 import * as core from '../shared/core.js';
 import { UEBUNGEN, MUSKELN, RAENGE, e1rm, effGewicht, rangFuer, levelAusXp, rangBadge } from './daten.js';
+import { berechneMaskottchen, maskottchenSvg, spruch, futterVon } from './maskottchen.js';
+import { muskelkarteSvg } from './muskelkarte.js';
 
 const APP = 'gym';
 const $app = document.getElementById('app');
 const $nav = document.getElementById('nav');
+const PUSH_URL = core.SUPABASE_URL + '/functions/v1/gym-push';
 
-const S = { name: '', gewicht: null, geschlecht: 'm', wochenziel: 3, pause: 90 };
+const S = {
+  name: '', gewicht: null, geschlecht: 'm', wochenziel: 3, pause: 90, petName: 'Pumpi',
+  pushStunde: 18, pushTage: 2, pushRueckblick: true,
+};
+let karteModus = 'erholung';          // Muskelkarte auf der Startseite
+let verlaufAnsicht = 'liste';         // 'liste' | 'rueckblick'
+let rbArt = 'woche', rbVersatz = 0;   // Rückblick
 let trainings = [];      // neueste zuerst
 let routinen = [];
 let eigene = [];
@@ -172,6 +181,10 @@ async function ladeAlles() {
   S.geschlecht = st.geschlecht || 'm';
   S.wochenziel = st.gym_wochenziel || 3;
   S.pause = st.gym_pause || 90;
+  S.petName = st.gym_maskottchen_name || 'Pumpi';
+  S.pushStunde = st.gym_push_stunde ?? 18;
+  S.pushTage = st.gym_push_tage ?? 2;
+  S.pushRueckblick = st.gym_push_rueckblick !== false;
   trainings = tr;
   routinen = r || [];
   eigene = e || [];
@@ -205,7 +218,9 @@ function seiteStart() {
       <h1>${S.name ? `Hey ${esc(S.name)}` : 'Bereit?'} 💪</h1></div>
     </div>
 
-    <div class="hero">
+    ${maskottchenKarte()}
+
+    <div class="hero" style="margin-top:10px">
       <div class="card level-card">
         <div class="muted small">Level</div>
         <div class="level-num num">${lv.level}</div>
@@ -235,12 +250,60 @@ function seiteStart() {
         <button class="start-btn" data-a="routine-start" data-id="${r.id}" aria-label="Starten">${ICON.play}</button>
       </div>`).join('') : `<div class="empty">Leg deine erste Routine an, z. B. „Push“, „Pull“ und „Beine“.</div>`}
 
-    <div class="section-title">Erholung</div>
-    <div class="card recovery">
+    <div class="section-title">Muskelkarte</div>
+    <div class="card">
+      <div class="seg" style="margin-bottom:12px">
+        <button data-a="karte" data-m="erholung" class="${karteModus === 'erholung' ? 'on' : ''}">Erholung</button>
+        <button data-a="karte" data-m="woche" class="${karteModus === 'woche' ? 'on' : ''}">Diese Woche</button>
+      </div>
+      ${karteHtml(erh, ws)}
+    </div>
+    <div class="card recovery" style="margin-top:10px">
       ${MUSKELN.map((m) => `<div class="rec-item"><div class="row"><span>${m}</span><span class="muted num">${erh[m]}%</span></div>
         <div class="rec-bar"><i style="width:${erh[m]}%;background:${farbe(erh[m])}"></i></div></div>`).join('')}
     </div>
   `;
+}
+
+function karteHtml(erh, ws) {
+  const saetze = muskelSaetze(ws, new Date(ws.getTime() + 7 * 864e5));
+  const max = Math.max(10, ...Object.values(saetze));
+  const werte = {};
+  for (const m of MUSKELN) werte[m] = karteModus === 'erholung' ? (100 - erh[m]) / 100 : (saetze[m] || 0) / max;
+  const farbe = karteModus === 'erholung' ? 'var(--fire)' : 'var(--accent2)';
+  return `<div class="mk-wrap" data-karte='${JSON.stringify({ erh, saetze })}'>${muskelkarteSvg(werte, farbe)}</div>
+    <p class="muted small mk-info">${karteModus === 'erholung' ? 'Orange = noch erschöpft. Tippe auf einen Muskel.' : 'Lila = viele Sätze diese Woche. Tippe auf einen Muskel.'}</p>`;
+}
+
+/** Arbeitssätze pro Muskel im Zeitraum (Nebenmuskeln zählen halb) */
+function muskelSaetze(von, bis) {
+  const res = {};
+  for (const t of trainings) {
+    const d = new Date(t.starts_at);
+    if (d < von || d >= bis) continue;
+    for (const ex of t.data?.uebungen || []) {
+      const ueb = findUeb(ex.id, ex);
+      const n = (ex.saetze || []).filter((s) => s.done && !s.warm).length;
+      res[ueb.muskel] = (res[ueb.muskel] || 0) + n;
+      for (const m of ueb.neben || []) res[m] = (res[m] || 0) + n * 0.5;
+    }
+  }
+  for (const k in res) res[k] = Math.round(res[k] * 10) / 10;
+  return res;
+}
+
+function maskottchenKarte() {
+  const m = berechneMaskottchen(trainings);
+  return `<div class="card pet-card">
+    <div class="pet-stage">${maskottchenSvg(m, 132)}</div>
+    <div class="grow">
+      <div class="row" style="gap:8px;justify-content:space-between"><b style="font-size:18px">${esc(S.petName)}</b><span class="pill">${m.stufe.name}</span></div>
+      <div class="bubble">${esc(spruch(m, S.petName))}</div>
+      <div class="pet-bar"><span>Energie</span><div><i style="width:${m.energie}%;background:${m.energie < 25 ? 'var(--danger)' : m.energie < 50 ? 'var(--fire)' : 'var(--ok)'}"></i></div><b class="num">${m.energie}</b></div>
+      <div class="pet-bar"><span>Kraft</span><div><i style="width:${Math.round(m.stufeFortschritt * 100)}%;background:var(--accent2)"></i></div><b class="num">${fmt(m.kraft, 0)}</b></div>
+      <div class="muted small" style="margin-top:4px">${m.naechste ? `Noch ${fmt(m.naechste.ab - m.kraft, 0)} Kraft bis <b>${m.naechste.name}</b>` : 'Höchste Stufe erreicht 👑'}</div>
+    </div>
+  </div>`;
 }
 
 function trainingItem(t) {
@@ -253,7 +316,12 @@ function trainingItem(t) {
 }
 
 function seiteVerlauf() {
-  let html = `<div class="page-head"><h1>Verlauf</h1></div>`;
+  let html = `<div class="page-head"><h1>Verlauf</h1></div>
+    <div class="seg" style="margin-bottom:16px">
+      <button data-a="verlauf-ansicht" data-v="liste" class="${verlaufAnsicht === 'liste' ? 'on' : ''}">Trainings</button>
+      <button data-a="verlauf-ansicht" data-v="rueckblick" class="${verlaufAnsicht === 'rueckblick' ? 'on' : ''}">Rückblick</button>
+    </div>`;
+  if (verlaufAnsicht === 'rueckblick') { $app.innerHTML = html + rueckblickHtml(); return; }
   if (!trainings.length) {
     html += `<div class="empty">Noch keine Trainings. Dein erstes Training erscheint hier.</div>`;
   } else {
@@ -269,6 +337,166 @@ function seiteVerlauf() {
     }
   }
   $app.innerHTML = html;
+}
+
+// ---------- Wochen- und Monatsrückblick ----------------------
+function zeitraum(art, versatz) {
+  if (art === 'woche') {
+    const von = wochenStart(new Date());
+    von.setDate(von.getDate() + 7 * versatz);
+    const bis = new Date(von); bis.setDate(bis.getDate() + 7);
+    const letzter = new Date(bis); letzter.setDate(letzter.getDate() - 1);
+    return { von, bis, titel: `${fmtDatum(von, { day: 'numeric', month: 'short' })} – ${fmtDatum(letzter, { day: 'numeric', month: 'short', year: 'numeric' })}`, vorher: 'Vorwoche' };
+  }
+  const h = new Date();
+  const von = new Date(h.getFullYear(), h.getMonth() + versatz, 1);
+  const bis = new Date(h.getFullYear(), h.getMonth() + versatz + 1, 1);
+  return { von, bis, titel: von.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' }), vorher: 'Vormonat' };
+}
+
+function auswerten(von, bis) {
+  const liste = trainings.filter((t) => { const d = new Date(t.starts_at); return d >= von && d < bis; });
+  const r = { liste, anzahl: liste.length, minuten: 0, volumen: 0, saetze: 0, prs: [], proUeb: {} };
+  for (const t of liste) {
+    const d = t.data || {};
+    r.minuten += d.dauer_min || 0; r.volumen += d.volumen || 0; r.saetze += d.saetze || 0;
+    for (const p of d.prs || []) r.prs.push({ ...p, datum: t.starts_at });
+    for (const ex of d.uebungen || []) r.proUeb[ex.id] = (r.proUeb[ex.id] || 0) + ex.saetze.filter((s) => !s.warm).length;
+  }
+  return r;
+}
+
+/** Bestes geschätztes Maximum pro Übung aus allen Trainings vor `datum` */
+function besteVor(datum) {
+  const best = {};
+  for (const t of trainings) {
+    if (new Date(t.starts_at) >= datum) continue;
+    const kgK = t.data?.koerpergewicht || S.gewicht;
+    for (const ex of t.data?.uebungen || []) {
+      const ueb = findUeb(ex.id, ex);
+      if (ueb.typ === 'zeit') continue;
+      for (const s of ex.saetze) if (s.done && !s.warm) best[ex.id] = Math.max(best[ex.id] || 0, e1rm(effGewicht(ueb, s.kg, kgK), s.wdh));
+    }
+  }
+  return best;
+}
+
+function balkenSvg(werte, labels, farbe = 'var(--accent2)') {
+  const W = 340, H = 120, pb = 18, n = werte.length;
+  const max = Math.max(1, ...werte);
+  const bw = (W / n) * 0.62, gap = W / n;
+  return `<svg class="chart" viewBox="0 0 ${W} ${H}">
+    <line class="grid" x1="0" x2="${W}" y1="${H - pb}" y2="${H - pb}"/>
+    ${werte.map((v, i) => {
+      const h = v ? Math.max(4, (v / max) * (H - pb - 14)) : 0;
+      const x = i * gap + (gap - bw) / 2;
+      return `${h ? `<rect x="${x}" y="${H - pb - h}" width="${bw}" height="${h}" rx="${Math.min(5, bw / 2)}" fill="${farbe}"/>` : `<rect x="${x}" y="${H - pb - 2}" width="${bw}" height="2" rx="1" fill="var(--line)"/>`}
+        ${labels[i] ? `<text class="lbl" x="${x + bw / 2}" y="${H - 4}" text-anchor="middle">${labels[i]}</text>` : ''}
+        ${v && n <= 7 ? `<text class="lbl" x="${x + bw / 2}" y="${H - pb - h - 4}" text-anchor="middle">${v}</text>` : ''}`;
+    }).join('')}
+  </svg>`;
+}
+
+function vergleich(jetzt, vorher, einheit = '') {
+  if (!vorher && !jetzt) return '';
+  if (!vorher) return `<span class="delta up">neu</span>`;
+  const p = Math.round(((jetzt - vorher) / vorher) * 100);
+  if (p === 0) return `<span class="delta">±0 %</span>`;
+  return `<span class="delta ${p > 0 ? 'up' : 'down'}">${p > 0 ? '▲' : '▼'} ${Math.abs(p)} %${einheit}</span>`;
+}
+
+function rueckblickHtml() {
+  const z = zeitraum(rbArt, rbVersatz);
+  const zv = zeitraum(rbArt, rbVersatz - 1);
+  const r = auswerten(z.von, z.bis), rv = auswerten(zv.von, zv.bis);
+  const kopf = `
+    <div class="seg" style="margin-bottom:12px">
+      <button data-a="rb-art" data-v="woche" class="${rbArt === 'woche' ? 'on' : ''}">Woche</button>
+      <button data-a="rb-art" data-v="monat" class="${rbArt === 'monat' ? 'on' : ''}">Monat</button>
+    </div>
+    <div class="rb-nav">
+      <button class="icon-btn" data-a="rb-nav" data-v="-1" aria-label="Zurück">‹</button>
+      <b>${z.titel}</b>
+      <button class="icon-btn" data-a="rb-nav" data-v="1" ${rbVersatz >= 0 ? 'disabled' : ''} aria-label="Weiter">›</button>
+    </div>`;
+
+  const mEnde = berechneMaskottchen(trainings, new Date(Math.min(Date.now(), z.bis.getTime() - 1)));
+  const mStart = berechneMaskottchen(trainings, new Date(z.von.getTime() - 1));
+
+  if (!r.anzahl) {
+    return kopf + `<div class="card" style="text-align:center;padding:28px 16px">
+      ${maskottchenSvg(mEnde, 110)}
+      <p class="muted">Keine Trainings in diesem Zeitraum.</p></div>`;
+  }
+
+  // Diagramm: Minuten pro Tag (Woche) bzw. pro Tag im Monat
+  let werte, labels;
+  if (rbArt === 'woche') {
+    werte = Array(7).fill(0);
+    for (const t of r.liste) werte[(new Date(t.starts_at).getDay() + 6) % 7] += t.data?.dauer_min || 0;
+    labels = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+  } else {
+    const tage = Math.round((z.bis - z.von) / 864e5);
+    werte = Array(tage).fill(0);
+    for (const t of r.liste) werte[new Date(t.starts_at).getDate() - 1] += t.data?.dauer_min || 0;
+    labels = werte.map((_, i) => ([0, 9, 19].includes(i) || i === tage - 1 ? String(i + 1) : ''));
+  }
+
+  // Rangaufstiege im Zeitraum
+  const vorher = besteVor(z.von), nachher = besteVor(z.bis);
+  const aufstiege = [];
+  if (S.gewicht) {
+    for (const id of Object.keys(nachher)) {
+      const ueb = findUeb(id); if (!ueb?.std) continue;
+      const a = rangFuer(ueb, vorher[id] || 0, S.gewicht, S.geschlecht), b = rangFuer(ueb, nachher[id], S.gewicht, S.geschlecht);
+      if (b && (!a || b.index > a.index)) aufstiege.push({ ueb, rang: b, alt: a });
+    }
+  }
+  const topId = Object.entries(r.proUeb).sort((a, b) => b[1] - a[1])[0];
+  const ms = muskelSaetze(z.von, z.bis);
+  const msMax = Math.max(1, ...Object.values(ms));
+  const werteKarte = Object.fromEntries(MUSKELN.map((m) => [m, (ms[m] || 0) / msMax]));
+  const topMuskeln = Object.entries(ms).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  const kraftPlus = mEnde.kraft - mStart.kraft;
+  const zielText = rbArt === 'woche'
+    ? (r.anzahl >= S.wochenziel ? `<span class="pill on">Wochenziel erreicht ✓</span>` : `<span class="pill">${r.anzahl} von ${S.wochenziel} fürs Wochenziel</span>`)
+    : '';
+
+  return kopf + `
+    <div class="card rb-hero">
+      <div class="muted small">Trainings</div>
+      <div class="row" style="align-items:baseline;gap:10px"><span class="rb-big num">${r.anzahl}</span>${vergleich(r.anzahl, rv.anzahl)}</div>
+      <div class="muted small">${rv.anzahl} in der ${z.vorher} ${zielText}</div>
+    </div>
+    <div class="stats3" style="margin-top:10px">
+      <div class="stat"><b class="num">${Math.floor(r.minuten / 60)}:${String(r.minuten % 60).padStart(2, '0')} h</b><span>Zeit ${vergleich(r.minuten, rv.minuten)}</span></div>
+      <div class="stat"><b class="num">${fmt(r.volumen / 1000, 1)} t</b><span>Volumen ${vergleich(r.volumen, rv.volumen)}</span></div>
+      <div class="stat"><b class="num">${r.saetze}</b><span>Sätze ${vergleich(r.saetze, rv.saetze)}</span></div>
+    </div>
+
+    <div class="section-title">Trainingsminuten</div>
+    <div class="card">${balkenSvg(werte, labels)}</div>
+
+    <div class="section-title">Trainierte Muskeln</div>
+    <div class="card">
+      <div class="mk-wrap">${muskelkarteSvg(werteKarte, 'var(--accent2)')}</div>
+      <div style="margin-top:8px">${topMuskeln.map(([m, n]) => `<div class="row" style="justify-content:space-between;padding:4px 0"><span>${m}</span><span class="muted num">${fmt(n)} Sätze</span></div>`).join('')}</div>
+    </div>
+
+    ${r.prs.length || aufstiege.length || topId ? `<div class="section-title">Highlights</div>` : ''}
+    ${aufstiege.map((a) => `<div class="pr-item">${rangBadge(a.rang, 36)}<div class="grow"><b>${esc(a.ueb.name)}</b><div class="muted small">${a.alt ? `${a.alt.name} → ` : ''}<b style="color:${a.rang.farbe}">${a.rang.name}</b></div></div></div>`).join('')}
+    ${r.prs.map((p) => `<div class="pr-item"><span class="trophy">🏆</span><div class="grow"><b>${esc(p.name)}</b><div class="muted small">Rekord am ${fmtDatum(p.datum, { day: 'numeric', month: 'short' })}: ${fmt(p.e1rm)} kg geschätztes Maximum</div></div></div>`).join('')}
+    ${topId ? `<div class="pr-item"><span class="trophy">⭐</span><div class="grow"><b>${esc(findUeb(topId[0], { name: 'Übung' }).name)}</b><div class="muted small">Häufigste Übung · ${topId[1]} Sätze</div></div></div>` : ''}
+
+    <div class="section-title">${esc(S.petName)}</div>
+    <div class="card pet-card">
+      <div class="pet-stage">${maskottchenSvg(mEnde, 104)}</div>
+      <div class="grow">
+        <div><b>${kraftPlus >= 0 ? '+' : ''}${fmt(kraftPlus, 0)} Kraft</b> ${rbArt === 'woche' ? 'diese Woche' : 'diesen Monat'}</div>
+        <div class="muted small">Stufe: ${mEnde.stufe.name}${mEnde.stufeIndex > mStart.stufeIndex ? ` · aufgestiegen von ${mStart.stufe.name} 🎉` : ''}</div>
+        <div class="muted small">Energie am Ende: ${mEnde.energie}</div>
+      </div>
+    </div>`;
 }
 
 function seiteUebungen() {
@@ -318,8 +546,12 @@ function seiteProfil() {
         <select name="wochenziel">${[1, 2, 3, 4, 5, 6, 7].map((n) => `<option ${n === S.wochenziel ? 'selected' : ''}>${n}</option>`).join('')}</select></label>
       <label class="field"><span>Standard-Pause</span>
         <select name="pause">${[45, 60, 90, 120, 150, 180, 240].map((n) => `<option value="${n}" ${n === S.pause ? 'selected' : ''}>${fmtDauer(n * 1000)} min</option>`).join('')}</select></label>
+      <label class="field"><span>Name deines Maskottchens</span><input name="petName" value="${esc(S.petName)}" maxlength="20"></label>
       <button class="btn btn-primary btn-block" type="submit">Speichern</button>
     </form>
+
+    <div class="section-title">Mitteilungen</div>
+    <div class="card" id="push-karte"><div class="muted small">Wird geladen …</div></div>
 
     <div class="section-title">Konto</div>
     <a class="list-item" href="../" style="text-decoration:none;color:inherit"><span class="grow">← Alle Apps</span></a>
@@ -336,13 +568,134 @@ function seiteProfil() {
     const patch = {
       name: f.get('name').trim(), gewicht: zahl(f.get('gewicht')), geschlecht,
       gym_wochenziel: +f.get('wochenziel'), gym_pause: +f.get('pause'),
+      gym_maskottchen_name: f.get('petName').trim() || 'Pumpi',
     };
     try {
       await core.updateSettings(patch);
-      Object.assign(S, { name: patch.name, gewicht: patch.gewicht, geschlecht, wochenziel: patch.gym_wochenziel, pause: patch.gym_pause });
+      Object.assign(S, { name: patch.name, gewicht: patch.gewicht, geschlecht, wochenziel: patch.gym_wochenziel, pause: patch.gym_pause, petName: patch.gym_maskottchen_name });
       berechne(); toast('Gespeichert ✓'); render();
     } catch { toast('Speichern fehlgeschlagen', true); }
   };
+  zeichnePushKarte();
+}
+
+// ---------- Mitteilungen (Push) ------------------------------
+const istIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+const alsAppGestartet = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+
+async function swRegistrierung() {
+  if (!('serviceWorker' in navigator)) return null;
+  try { return await navigator.serviceWorker.register('sw.js'); } catch { return null; }
+}
+
+async function aktuellesAbo() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null;
+  const reg = await navigator.serviceWorker.getRegistration();
+  return reg ? reg.pushManager.getSubscription() : null;
+}
+
+async function zeichnePushKarte() {
+  const el = document.getElementById('push-karte'); if (!el) return;
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+    el.innerHTML = istIOS && !alsAppGestartet
+      ? `<p style="margin:0">📱 Auf dem iPhone gehen Mitteilungen nur, wenn die App auf dem Home-Bildschirm liegt: in Safari auf <b>Teilen</b> → <b>Zum Home-Bildschirm</b>, dann die App von dort öffnen.</p>`
+      : `<p class="muted" style="margin:0">Dieser Browser unterstützt keine Mitteilungen.</p>`;
+    return;
+  }
+  const abo = await aktuellesAbo();
+  if (!abo || Notification.permission !== 'granted') {
+    el.innerHTML = `<p style="margin:0 0 12px">Lass dich erinnern, wenn ${esc(S.petName)} Hunger hat, dein Streak in Gefahr ist oder dein Wochenrückblick da ist.</p>
+      ${Notification.permission === 'denied' ? `<p class="muted small">Mitteilungen sind in deinen Browser-Einstellungen blockiert. Erlaube sie dort für diese Seite.</p>` : ''}
+      <button class="btn btn-primary btn-block" data-a="push-an">🔔 Mitteilungen aktivieren</button>`;
+    return;
+  }
+  el.innerHTML = `
+    <div class="row" style="margin-bottom:12px"><span class="grow">🔔 Mitteilungen sind <b style="color:var(--ok)">aktiv</b></span></div>
+    <label class="field"><span>Uhrzeit für Erinnerungen</span>
+      <select data-push="gym_push_stunde">${Array.from({ length: 17 }, (_, i) => i + 6).map((h) => `<option value="${h}" ${h === S.pushStunde ? 'selected' : ''}>${h}:00 Uhr</option>`).join('')}</select></label>
+    <label class="field"><span>${esc(S.petName)} meldet sich nach</span>
+      <select data-push="gym_push_tage">${[1, 2, 3, 4, 5].map((n) => `<option value="${n}" ${n === S.pushTage ? 'selected' : ''}>${n} ${n === 1 ? 'Tag' : 'Tagen'} ohne Training</option>`).join('')}</select></label>
+    <label class="check-row"><input type="checkbox" data-push="gym_push_rueckblick" ${S.pushRueckblick ? 'checked' : ''}> Wochenrückblick am Sonntag</label>
+    <div class="sheet-actions">
+      <button class="btn" data-a="push-test">Test senden</button>
+      <button class="btn btn-danger" data-a="push-aus">Ausschalten</button>
+    </div>`;
+  el.querySelectorAll('[data-push]').forEach((inp) => inp.onchange = async () => {
+    const k = inp.dataset.push;
+    const v = inp.type === 'checkbox' ? inp.checked : Number(inp.value);
+    try {
+      await core.updateSettings({ [k]: v, gym_push_aus: false });
+      if (k === 'gym_push_stunde') S.pushStunde = v;
+      if (k === 'gym_push_tage') S.pushTage = v;
+      if (k === 'gym_push_rueckblick') S.pushRueckblick = v;
+      toast('Gespeichert ✓');
+    } catch { toast('Speichern fehlgeschlagen', true); }
+  });
+}
+
+function base64zuBytes(b64) {
+  const s = (b64 + '='.repeat((4 - (b64.length % 4)) % 4)).replace(/-/g, '+').replace(/_/g, '/');
+  return Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
+}
+
+async function pushAn(btn) {
+  btn.disabled = true; btn.textContent = '…';
+  try {
+    const erlaubt = await Notification.requestPermission();
+    if (erlaubt !== 'granted') throw new Error('Mitteilungen wurden nicht erlaubt.');
+    await swRegistrierung();
+    const reg = await navigator.serviceWorker.ready;
+    const r = await fetch(PUSH_URL + '?modus=key', { headers: { apikey: core.SUPABASE_KEY } }).catch(() => null);
+    if (!r?.ok) throw new Error('Die Mitteilungs-Funktion in Supabase ist noch nicht eingerichtet.');
+    const { publicKey } = await r.json();
+    let abo = await reg.pushManager.getSubscription();
+    if (abo) {
+      const alt = abo.options?.applicationServerKey;
+      const passt = alt && btoa(String.fromCharCode(...new Uint8Array(alt))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '') === publicKey.replace(/=+$/, '');
+      if (!passt) { await abo.unsubscribe(); abo = null; }
+    }
+    abo = abo || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: base64zuBytes(publicKey) });
+    const j = abo.toJSON();
+    const { error } = await core.sb.from('push_subscriptions').upsert({
+      endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth,
+      zeitzone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'Europe/Berlin',
+      geraet: navigator.userAgent.slice(0, 150),
+    }, { onConflict: 'endpoint' });
+    if (error) throw new Error(/push_subscriptions/.test(error.message) ? 'Führe zuerst 003_mitteilungen.sql in Supabase aus.' : error.message);
+    await core.updateSettings({ gym_push_aus: false });
+    toast('Mitteilungen aktiviert 🔔');
+  } catch (err) {
+    toast(err.message || 'Aktivieren fehlgeschlagen', true);
+  }
+  zeichnePushKarte();
+}
+
+async function pushAus() {
+  try {
+    const abo = await aktuellesAbo();
+    if (abo) {
+      await core.sb.from('push_subscriptions').delete().eq('endpoint', abo.endpoint);
+      await abo.unsubscribe();
+    }
+    toast('Mitteilungen ausgeschaltet');
+  } catch { toast('Ausschalten fehlgeschlagen', true); }
+  zeichnePushKarte();
+}
+
+async function pushTest(btn) {
+  btn.disabled = true;
+  try {
+    const { data } = await core.sb.auth.getSession();
+    const r = await fetch(PUSH_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', apikey: core.SUPABASE_KEY, Authorization: `Bearer ${data.session?.access_token}` },
+      body: JSON.stringify({ modus: 'test' }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.fehler || 'Funktion nicht erreichbar');
+    toast(j.gesendet ? 'Test gesendet – kommt gleich an 📬' : 'Kein Gerät gefunden – aktiviere die Mitteilungen neu.', !j.gesendet);
+  } catch (err) { toast(err.message, true); }
+  btn.disabled = false;
 }
 
 // ---------- Detail-Ansichten ---------------------------------
@@ -779,7 +1132,14 @@ function stoppePause() { clearInterval(pauseTimer); pause = null; document.query
 function zeichnePause() {
   if (!pause) return;
   const rest = pause.ende - Date.now();
-  if (rest <= 0) { stoppePause(); piep(); navigator.vibrate?.([200, 100, 200]); toast('Pause vorbei – nächster Satz! 💪'); return; }
+  if (rest <= 0) {
+    stoppePause(); piep(); navigator.vibrate?.([200, 100, 200]); toast('Pause vorbei – nächster Satz! 💪');
+    // Wenn die App im Hintergrund ist: Mitteilung (klappt, solange der Browser die Seite noch laufen lässt)
+    if (document.hidden && 'Notification' in window && Notification.permission === 'granted') {
+      navigator.serviceWorker?.ready.then((r) => r.showNotification('Pause vorbei 💪', { body: 'Weiter mit dem nächsten Satz!', tag: 'gym-pause', icon: 'icon-192.png' })).catch(() => {});
+    }
+    return;
+  }
   let el = document.querySelector('.rest');
   if (!el) {
     el = document.createElement('div');
@@ -859,6 +1219,7 @@ async function beendeTraining() {
   };
 
   const lvVorher = levelAusXp(vorher.xp).level;
+  const petVorher = berechneMaskottchen(trainings);
   try {
     const gespeichert = await core.addEvent(ev);
     trainings.unshift(gespeichert);
@@ -871,6 +1232,8 @@ async function beendeTraining() {
   aktiv = null; sichern(); stoppePause(); renderTraining();
   berechne();
   const lvNachher = levelAusXp(stats.xp).level;
+  const petNachher = berechneMaskottchen(trainings);
+  const futter = futterVon(ev);
   tab = 'start'; render();
 
   sheet(`<div class="summary-hero">
@@ -886,6 +1249,13 @@ async function beendeTraining() {
     </div>
     ${rangAuf.map((r) => `<div class="pr-item">${rangBadge(r.rang, 36)}<div class="grow"><b>${esc(r.name)}</b><div class="muted small">Neuer Rang: <b style="color:${r.rang.farbe}">${r.rang.name}</b></div></div></div>`).join('')}
     ${prs.map((p) => `<div class="pr-item"><span class="trophy">🏆</span><div class="grow"><b>${esc(p.name)}</b><div class="muted small">Neuer Rekord: ${fmt(p.e1rm)} kg geschätztes Maximum</div></div></div>`).join('')}
+    <div class="pet-card card" style="margin-top:10px">
+      <div class="pet-stage">${maskottchenSvg(petNachher, 92)}</div>
+      <div class="grow"><b>${esc(S.petName)} wurde gefüttert! 🍗</b>
+        <div class="muted small">+${fmt(Math.max(0, petNachher.energie - petVorher.energie), 0)} Energie · +${fmt(futter.kraft, 0)} Kraft</div>
+        ${petNachher.stufeIndex > petVorher.stufeIndex ? `<div class="pill on" style="margin-top:6px">Neue Stufe: ${petNachher.stufe.name}!</div>` : ''}
+      </div>
+    </div>
     <p class="muted small" style="text-align:center;margin-top:14px">ca. ${kcal} kcal verbrannt · wird für den Kalorien-Tracker gespeichert</p>
     <div class="sheet-actions">
       ${!ausRoutine ? '<button class="btn" data-a="routine">Als Routine speichern</button>' : ''}
@@ -898,6 +1268,17 @@ async function beendeTraining() {
 
 // ---------- Seiten-Klicks ------------------------------------
 $app.addEventListener('click', (e) => {
+  // Tipp auf einen Muskel in der Karte
+  const teil = e.target.closest('.mk-teil');
+  if (teil) {
+    const wrap = teil.closest('.mk-wrap');
+    const info = wrap?.parentElement.querySelector('.mk-info');
+    const daten = wrap?.dataset.karte ? JSON.parse(wrap.dataset.karte) : null;
+    const m = teil.dataset.muskel;
+    wrap.querySelectorAll('.mk-teil').forEach((p) => p.classList.toggle('mk-sel', p.dataset.muskel === m));
+    if (info && daten) info.innerHTML = `<b style="color:var(--text)">${m}</b> · ${daten.erh[m]}% erholt · ${fmt(daten.saetze[m] || 0)} Sätze diese Woche`;
+    return;
+  }
   const b = e.target.closest('[data-a]'); if (!b) return;
   const a = b.dataset.a, id = b.dataset.id;
   if (a === 'leer') starteTraining(null);
@@ -908,6 +1289,13 @@ $app.addEventListener('click', (e) => {
   if (a === 'uebung') zeigeUebung(id);
   if (a === 'eigene-uebung') eigeneUebungErstellen();
   if (a === 'filter') { filterMuskel = b.dataset.m || null; render(); }
+  if (a === 'karte') { karteModus = b.dataset.m; seiteStart(); }
+  if (a === 'verlauf-ansicht') { verlaufAnsicht = b.dataset.v; rbVersatz = 0; render(); }
+  if (a === 'rb-art') { rbArt = b.dataset.v; rbVersatz = 0; seiteVerlauf(); }
+  if (a === 'rb-nav') { rbVersatz = Math.min(0, rbVersatz + Number(b.dataset.v)); seiteVerlauf(); }
+  if (a === 'push-an') pushAn(b);
+  if (a === 'push-aus') pushAus();
+  if (a === 'push-test') pushTest(b);
   if (a === 'logout') core.logout();
 });
 
@@ -966,10 +1354,23 @@ async function init() {
   aktiv = store.get('gym-aktiv');
   minimiert = !!aktiv;
   $nav.classList.remove('hidden');
+  swRegistrierung();
+  hashOeffnen();
   render();
   if (aktiv) renderMini();
   if (!S.gewicht && !store.get('gym-einrichtung-spaeter')) { ersteEinrichtung(); store.set('gym-einrichtung-spaeter', true); }
 }
+
+// Links aus Mitteilungen, z. B. #rueckblick
+function hashOeffnen() {
+  if (location.hash === '#rueckblick') {
+    tab = 'verlauf'; verlaufAnsicht = 'rueckblick'; rbArt = 'woche'; rbVersatz = 0;
+    history.replaceState(null, '', location.pathname);
+    return true;
+  }
+  return false;
+}
+window.addEventListener('hashchange', () => { if (stats && hashOeffnen()) render(); });
 
 core.onAuthChange((u) => { if (!u && $nav && !$nav.classList.contains('hidden')) location.reload(); });
 init();
