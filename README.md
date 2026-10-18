@@ -4,6 +4,7 @@ Eigene Apps für den Alltag – einzeln nutzbar, aber über eine gemeinsame Supa
 
 | App | Ordner | Status |
 |---|---|---|
+| Ausbildung | `ausbildung/` | ✅ |
 | Gym-Tracker | `gym/` | ✅ |
 | Kalender | `kalender/` | ✅ |
 | Kalorien-Tracker | `kalorien/` | ✅ |

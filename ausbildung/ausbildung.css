@@ -1,0 +1,132 @@
+/* Ausbildung – ergänzt ../gym/style.css */
+:root { --volt: #F5C542; }
+mark { background: rgba(245,197,66,.28); color: var(--text); border-radius: 3px; padding: 0 2px; }
+
+.az-hero { padding: 18px 16px; background: radial-gradient(120% 140% at 0% 0%, rgba(245,197,66,.2), transparent 60%), var(--card); }
+.az-lernhero { padding: 18px 16px; background: radial-gradient(120% 140% at 100% 0%, rgba(124,92,255,.28), transparent 60%), var(--card); }
+.az-gross { font-size: 34px; font-weight: 900; line-height: 1.05; letter-spacing: -.03em; }
+.az-gross span { font-size: 15px; font-weight: 700; color: var(--muted); letter-spacing: 0; }
+.az-riesig { font-size: 64px; font-weight: 900; line-height: 1; letter-spacing: -.04em; }
+.az-bar > i { background: linear-gradient(90deg, #FFB54A, var(--volt)); }
+.az-pruef { display: flex; justify-content: space-between; align-items: center; margin-top: 14px; padding: 10px 12px; border-radius: 12px; background: rgba(245,197,66,.12); color: var(--volt); font-weight: 700; }
+.az-pruef b { font-weight: 900; }
+
+.az-ort { display: inline-flex; padding: 5px 11px; border-radius: 99px; background: var(--card2); font-weight: 700; font-size: 14px; }
+.az-ort.schule { background: rgba(90,184,255,.15); color: #8ACBFF; }
+.stunde { display: flex; align-items: center; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); width: 100%; background: none; border-left: 0; border-right: 0; border-top: 0; text-align: left; }
+.stunde:last-child { border-bottom: 0; }
+.stunde .num { min-width: 86px; font-size: 13px; }
+
+.az-stat { border: 0; text-align: left; }
+.az-tage { display: flex; gap: 6px; margin-top: 12px; }
+.az-tage span { flex: 1; text-align: center; padding: 6px 0; border-radius: 9px; background: var(--card2); font-size: 12px; font-weight: 700; color: var(--muted); }
+.az-tage span.an { background: rgba(61,220,132,.18); color: var(--ok); }
+.az-tage span.heute { outline: 2px solid var(--accent2); outline-offset: 1px; }
+.az-schnell .list-item span:first-child { font-size: 20px; }
+
+.az-zwei { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.az-drei { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.az-zwei .field, .az-drei .field { margin-bottom: 10px; }
+.az-pruefkarte { text-align: left; display: flex; flex-direction: column; gap: 3px; color: inherit; margin: 0 !important; }
+.az-pruefkarte b { font-size: 20px; font-weight: 900; }
+.az-pruefkarte span { font-weight: 700; color: var(--volt); font-size: 13px; }
+.az-pruefkarte small { color: var(--muted); font-size: 12px; line-height: 1.3; }
+
+.az-thema { display: flex; align-items: center; gap: 12px; width: 100%; background: none; border: 0; padding: 7px 0; text-align: left; }
+.az-thema .bicon { width: 36px; height: 36px; border-radius: 11px; display: grid; place-items: center; font-size: 17px; flex: none; background: color-mix(in srgb, var(--b-farbe) 18%, transparent); }
+.az-thema b { display: block; font-size: 14px; }
+.balken { display: block; height: 6px; border-radius: 99px; background: var(--card2); overflow: hidden; margin-top: 5px; }
+.balken i { display: block; height: 100%; border-radius: inherit; min-width: 2px; }
+.az-eigen { display: flex; gap: 10px; align-items: center; width: 100%; background: none; border: 0; border-bottom: 1px solid var(--line); padding: 9px 0; text-align: left; }
+.az-eigen:last-child { border-bottom: 0; }
+.az-eigen b, .az-eigen span.muted { display: block; }
+.chev { color: var(--muted); }
+
+.az-suche { display: flex; gap: 8px; margin-top: 12px; }
+.az-suche .btn { flex: none; }
+.az-treffer { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 10px; }
+.az-treffer p { margin: 6px 0 0; font-size: 13px; line-height: 1.5; color: #C9CEDA; }
+.mini-btn { border: 0; background: var(--card2); border-radius: 8px; padding: 5px 9px; font-weight: 700; font-size: 12px; color: var(--accent2); }
+.tag { font-size: 11px; font-weight: 800; padding: 3px 8px; border-radius: 99px; background: var(--card2); color: var(--muted); display: inline-block; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips button { border: 1.5px solid var(--line); background: var(--card); border-radius: 99px; padding: 7px 12px; font-weight: 700; font-size: 13px; }
+.chips button.on { border-color: var(--accent2); background: rgba(124,92,255,.18); }
+
+/* Berichtsheft */
+.az-kwnav { display: flex; align-items: center; gap: 10px; padding: 10px; }
+.az-eintrag { align-items: flex-start; }
+.az-text { display: block; font-weight: 600; line-height: 1.35; margin-bottom: 3px; }
+.az-ortpunkt { width: 10px; height: 10px; border-radius: 50%; margin-top: 5px; flex: none; background: var(--volt); }
+.az-ortpunkt.schule { background: #5AB8FF; }
+.az-leer { padding: 4px 2px 0; }
+.az-vzeile { display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; padding: 8px 10px; border-radius: 12px; background: var(--card); margin-bottom: 6px; }
+.az-vzeile span { font-weight: 600; font-size: 14px; overflow-wrap: anywhere; }
+.az-vzeile select { width: 100%; min-width: 0; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg2); font-size: 13px; }
+.balken-zeile { display: grid; grid-template-columns: minmax(0, 1.3fr) 1fr 28px; gap: 8px; align-items: center; font-size: 12px; margin-bottom: 7px; }
+.balken-zeile div { height: 8px; background: var(--card2); border-radius: 99px; overflow: hidden; }
+.balken-zeile i { display: block; height: 100%; border-radius: inherit; background: var(--volt); }
+.az-kat { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.az-kat .icon-btn { width: 30px; height: 30px; color: var(--danger); font-size: 16px; }
+
+/* Schule */
+.az-stunde { cursor: pointer; }
+.az-schnitt { display: flex; align-items: center; }
+.az-fach { margin-top: 10px; }
+.az-noten { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.az-note { border: 0; border-radius: 10px; padding: 6px 10px; background: color-mix(in srgb, var(--n) 15%, var(--card2)); display: flex; flex-direction: column; align-items: center; min-width: 48px; }
+.az-note b { color: var(--n); font-size: 16px; font-weight: 900; }
+.az-note span { font-size: 10px; color: var(--muted); font-weight: 700; }
+.az-notenwahl { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.az-notenwahl button { border: 1.5px solid var(--line); background: var(--card); border-radius: 10px; padding: 9px 0; font-weight: 800; }
+.az-notenwahl button.on { border-color: var(--accent2); background: rgba(124,92,255,.2); }
+
+/* Formeln */
+.az-rechner { padding: 0 16px; }
+.az-rkopf { display: flex; width: 100%; background: none; border: 0; padding: 15px 0; text-align: left; font-size: 15px; }
+.az-rechner[data-r] > .mini-btn { margin: 4px 0 16px; }
+.az-felder { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
+.az-felder .field { margin-bottom: 10px; }
+.az-felder .field.breit { grid-column: 1 / -1; }
+.az-felder em { font-style: normal; color: var(--muted); font-weight: 500; }
+.az-erg { background: var(--bg2); border-radius: 12px; padding: 12px; margin-top: 2px; min-height: 44px; }
+.az-ergwerte { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; font-size: 16px; }
+.az-formel { font-size: 12px; color: var(--muted); margin-top: 8px; font-family: ui-monospace, Menlo, monospace; }
+.az-warn { color: var(--danger); font-weight: 600; }
+.az-sammlung { display: grid; gap: 10px; }
+.az-sammlung div { display: grid; gap: 2px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.az-sammlung div:last-child { border-bottom: 0; padding-bottom: 0; }
+.az-sammlung b { font-family: ui-monospace, Menlo, monospace; font-size: 14px; font-weight: 600; }
+
+/* Vollbild-Lernsitzung */
+.vollbild { position: fixed; inset: 0; z-index: 40; background: var(--bg); display: flex; flex-direction: column; padding: calc(12px + var(--safe-t)) 16px calc(14px + var(--safe-b)); max-width: 560px; margin: 0 auto; animation: up .2s; }
+.vb-kopf { display: flex; align-items: center; gap: 12px; min-height: 40px; }
+.vb-fort { height: 8px; border-radius: 99px; background: var(--card2); overflow: hidden; }
+.vb-fort i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); border-radius: inherit; transition: width .25s; }
+.vb-uhr { font-weight: 800; min-width: 44px; text-align: right; }
+.vb-uhr.knapp { color: var(--danger); }
+.vb-karte { flex: 1; overflow-y: auto; padding: 22px 2px 10px; }
+.vb-karte .tag { color: var(--b-farbe); background: color-mix(in srgb, var(--b-farbe) 14%, transparent); }
+.vb-frage { font-size: 22px; font-weight: 800; line-height: 1.3; margin: 14px 0 20px; }
+.vb-opts { display: grid; gap: 8px; }
+.vb-opt { text-align: left; padding: 14px; border-radius: 14px; border: 1.5px solid var(--line); background: var(--card); font-weight: 600; line-height: 1.35; transition: border-color .15s, background .15s; }
+.vb-opt.gewaehlt { border-color: var(--accent2); background: rgba(124,92,255,.18); }
+.vb-opt.richtig { border-color: var(--ok); background: rgba(61,220,132,.15); }
+.vb-opt.falsch { border-color: var(--danger); background: rgba(255,77,109,.14); }
+.vb-opt:disabled { color: var(--text); opacity: 1; }
+.vb-erkl { margin-top: 14px; padding: 12px 14px; border-radius: 14px; background: rgba(255,77,109,.1); line-height: 1.45; font-size: 14px; }
+.vb-erkl.ok { background: rgba(61,220,132,.1); }
+.vb-antwort { padding: 16px; border-radius: 14px; background: var(--card); line-height: 1.5; border-left: 4px solid var(--b-farbe); }
+.vb-fuss { display: grid; gap: 10px; }
+.vb-punkte { display: flex; gap: 5px; overflow-x: auto; scrollbar-width: none; padding: 2px; }
+.vb-punkte::-webkit-scrollbar { display: none; }
+.vb-punkte button { flex: none; width: 30px; height: 30px; border-radius: 9px; border: 0; background: var(--card2); color: var(--muted); font-size: 12px; font-weight: 700; }
+.vb-punkte button.an { background: rgba(124,92,255,.3); color: var(--text); }
+.vb-punkte button.jetzt { outline: 2px solid var(--accent2); }
+.vb-ende { flex: 1; display: flex; flex-direction: column; justify-content: center; text-align: center; gap: 6px; }
+.vb-ende h2 { font-size: 26px; }
+.vb-scroll { flex: 1; overflow-y: auto; padding-top: 12px; }
+.vb-review { margin-top: 10px; }
+.vb-r { font-size: 13px; margin-top: 6px; font-weight: 600; }
+.vb-r.falsch { color: var(--danger); }
+.vb-r.richtig { color: var(--ok); }
+textarea.search { resize: vertical; line-height: 1.45; }
