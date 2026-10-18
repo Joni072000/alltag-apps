@@ -259,3 +259,14 @@ h1, h2, h3 { margin: 0; letter-spacing: -.02em; }
 
 .check-row { display: flex; align-items: center; gap: 10px; font-weight: 600; padding: 4px 0; }
 .check-row input { width: 20px; height: 20px; accent-color: var(--accent); }
+
+/* ---------- Ränge ---------- */
+.rang-legende { display: flex; flex-wrap: wrap; gap: 6px 10px; margin-top: 12px; }
+.rang-legende span { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; color: var(--muted); opacity: .55; }
+.rang-legende span.an { opacity: 1; color: var(--text); }
+.rang-legende i { width: 10px; height: 10px; border-radius: 3px; display: block; }
+.rang-zeile { align-items: center; }
+.rang-zeile.leer { opacity: .6; }
+.rang-name { font-weight: 800; font-size: 13px; }
+.mini-pause { font-size: 13px; background: rgba(255,255,255,.2); padding: 3px 8px; border-radius: 99px; }
+.mini-pause:empty { display: none; }

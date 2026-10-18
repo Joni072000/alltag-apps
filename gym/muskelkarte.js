@@ -54,7 +54,8 @@ function figur(teile, neutral, werte, farbe, versatz) {
   }
   for (const [muskel, p] of teile) {
     const w = werte[muskel] || 0;
-    const fill = w > 0.02 ? farbe : NEUTRAL;
+    const f = typeof farbe === 'object' ? farbe[muskel] : farbe;   // eine Farbe oder je Muskel eine eigene
+    const fill = w > 0.02 && f ? f : NEUTRAL;
     const op = w > 0.02 ? (0.25 + 0.75 * Math.min(1, w)).toFixed(2) : 1;
     for (const d of [p, spiegel(p)]) {
       out += `<path d="${d}" fill="${fill}" fill-opacity="${op}" stroke="${UMRISS}" stroke-width=".8" data-muskel="${muskel}" class="mk-teil"/>`;
@@ -63,7 +64,7 @@ function figur(teile, neutral, werte, farbe, versatz) {
   return out + '</g>';
 }
 
-/** farbe: CSS-Farbe für belastete Muskeln */
+/** farbe: CSS-Farbe für belastete Muskeln – oder ein Objekt { Muskel: Farbe } */
 export function muskelkarteSvg(werte, farbe = 'var(--fire)') {
   return `<svg class="muskelkarte" viewBox="0 0 260 250" role="img" aria-label="Muskelkarte">
     ${figur(VORNE, VORNE_NEUTRAL, werte, farbe, 5)}

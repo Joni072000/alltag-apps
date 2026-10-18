@@ -202,7 +202,7 @@ const speichereEigene = () => core.setAppData(APP, 'eigene_uebungen', eigene).ca
 // ---------- Seiten -------------------------------------------
 function render() {
   $nav.querySelectorAll('button').forEach((b) => b.classList.toggle('active', b.dataset.tab === tab));
-  ({ start: seiteStart, verlauf: seiteVerlauf, uebungen: seiteUebungen, profil: seiteProfil })[tab]();
+  ({ start: seiteStart, verlauf: seiteVerlauf, uebungen: seiteUebungen, rang: seiteRang, profil: seiteProfil })[tab]();
   renderMini();
   window.scrollTo(0, 0);
 }
@@ -539,6 +539,71 @@ function seiteUebungen() {
         <div class="muted small">${u.muskel}${p ? ` · ${p.einheiten.length}× · ${u.typ === 'zeit' ? `${p.bestZeit} s` : `Best ${fmt(p.bestKg)} kg × ${p.bestWdh}`}` : ''}</div></div>
         <span class="chev">›</span></button>`;
     }).join('') || '<div class="empty">Nichts gefunden.</div>'}</div>`;
+}
+
+// ---------- Ränge ------------------------------------------
+function gesamtRang() {
+  const raenge = alleUebungen().map((u) => rangVon(u.id)).filter(Boolean);
+  const schnitt = raenge.length ? Math.round(raenge.reduce((a, r) => a + r.index, 0) / raenge.length) : null;
+  return { gesamt: schnitt != null ? { index: schnitt, ...RAENGE[schnitt] } : null, anzahl: raenge.length };
+}
+
+/** Pro Muskel der beste Rang aus allen Übungen, die diesen Muskel als Hauptmuskel trainieren */
+function muskelRaenge() {
+  const res = {};
+  for (const m of MUSKELN) {
+    const liste = alleUebungen().filter((u) => u.muskel === m && u.std)
+      .map((u) => ({ u, r: rangVon(u.id) })).filter((x) => x.r)
+      .sort((a, b) => b.r.anteil - a.r.anteil);
+    res[m] = { beste: liste[0] || null, liste };
+  }
+  return res;
+}
+
+function seiteRang() {
+  const { gesamt, anzahl } = gesamtRang();
+  const mr = muskelRaenge();
+  const werte = {}, farben = {}, info = {};
+  for (const m of MUSKELN) {
+    const b = mr[m].beste;
+    if (b) { werte[m] = 1; farben[m] = b.r.farbe; }
+    info[m] = b ? { rang: b.r.name, farbe: b.r.farbe, ueb: b.u.name } : null;
+  }
+  const erreicht = new Set(Object.values(mr).filter((x) => x.beste).map((x) => x.beste.r.index));
+  const alle = alleUebungen().filter((u) => u.std).map((u) => ({ u, r: rangVon(u.id) })).filter((x) => x.r).sort((a, b) => b.r.anteil - a.r.anteil);
+
+  $app.innerHTML = `
+    <div class="page-head"><h1>Ränge</h1></div>
+    ${!S.gewicht ? `<div class="card" style="text-align:center"><p style="margin:0 0 12px">Trag im Profil dein Körpergewicht ein, damit deine Ränge berechnet werden können.</p><button class="btn btn-primary" data-a="zum-profil">Zum Profil</button></div>` : ''}
+    <div class="card rank-hero">
+      ${rangBadge(gesamt, 76)}
+      <div class="rank-name" style="${gesamt ? `color:${gesamt.farbe}` : ''}">${gesamt ? gesamt.name : 'Noch kein Rang'}</div>
+      <div class="muted small">${anzahl ? `Gesamtrang aus ${anzahl} ${anzahl === 1 ? 'Übung' : 'Übungen'}` : 'Trainiere Übungen mit Rang, z. B. Bankdrücken oder Kniebeugen.'}</div>
+    </div>
+
+    <div class="section-title">Muskelkarte</div>
+    <div class="card">
+      <div class="mk-wrap" data-rang='${esc(JSON.stringify(info))}'>${muskelkarteSvg(werte, farben)}</div>
+      <p class="muted small mk-info">Jeder Muskel leuchtet in der Farbe seines besten Rangs. Tippe auf einen Muskel.</p>
+      <div class="rang-legende">${RAENGE.map((r, i) => `<span class="${erreicht.has(i) ? 'an' : ''}"><i style="background:${r.farbe}"></i>${r.name}</span>`).join('')}</div>
+    </div>
+
+    <div class="section-title">Nach Muskeln</div>
+    ${MUSKELN.map((m) => {
+      const b = mr[m].beste;
+      if (!b) return `<div class="list-item rang-zeile leer">${rangBadge(null, 40)}<div class="grow"><b>${m}</b><div class="muted small">Noch kein Rang</div></div></div>`;
+      return `<button class="list-item rang-zeile" data-a="uebung" data-id="${b.u.id}">
+        ${rangBadge(b.r, 40)}
+        <div class="grow" style="min-width:0"><div class="row" style="gap:6px"><b>${m}</b><span class="rang-name" style="color:${b.r.farbe}">${b.r.name}</span></div>
+          <div class="muted small ellipsis">${esc(b.u.name)}${mr[m].liste.length > 1 ? ` · ${mr[m].liste.length} Übungen` : ''}</div>
+          <div class="rank-prog" style="margin:6px 0 0;height:6px"><i style="width:${Math.round(b.r.fortschritt * 100)}%;background:${b.r.naechster?.farbe || b.r.farbe}"></i></div>
+          <div class="muted small" style="margin-top:3px">${b.r.naechster ? `nächster Rang: <b style="color:${b.r.naechster.farbe}">${b.r.naechster.name}</b>` : 'Höchster Rang 👑'}</div></div>
+        <span class="chev">›</span></button>`;
+    }).join('')}
+
+    ${alle.length ? `<div class="section-title">Alle Übungen mit Rang</div>
+    ${alle.map((x) => `<button class="list-item" data-a="uebung" data-id="${x.u.id}">${rangBadge(x.r, 34)}<div class="grow" style="min-width:0"><div class="ellipsis"><b>${esc(x.u.name)}</b></div><div class="muted small">${x.u.muskel} · <span style="color:${x.r.farbe};font-weight:700">${x.r.name}</span></div></div><span class="chev">›</span></button>`).join('')}` : ''}
+  `;
 }
 
 function seiteProfil() {
@@ -1017,6 +1082,7 @@ function renderTraining() {
   </div>`;
   $w.scrollTop = scroll;
   starteUhr();
+  if (pause) zeichnePause();
 }
 
 function starteUhr() {
@@ -1034,7 +1100,7 @@ function renderMini() {
   if (!aktiv || !minimiert) return;
   const b = document.createElement('button');
   b.className = 'mini';
-  b.innerHTML = `<span class="dotlive"></span><span class="grow ellipsis" style="text-align:left">${esc(aktiv.titel)}</span><span class="num" data-uhr>${fmtDauer(Date.now() - aktiv.start)}</span>`;
+  b.innerHTML = `<span class="dotlive"></span><span class="grow ellipsis" style="text-align:left">${esc(aktiv.titel)}</span><span class="mini-pause num" data-pause>${pause && pause.ende > Date.now() ? `⏱ ${fmtDauer(pause.ende - Date.now() + 999)}` : ''}</span><span class="num" data-uhr>${fmtDauer(Date.now() - aktiv.start)}</span>`;
   b.onclick = () => { minimiert = false; renderTraining(); };
   document.body.appendChild(b);
   starteUhr();
@@ -1141,7 +1207,7 @@ function startePause(sek) {
   pauseTimer = setInterval(zeichnePause, 250);
 }
 
-function stoppePause() { clearInterval(pauseTimer); pause = null; document.querySelector('.rest')?.remove(); }
+function stoppePause() { clearInterval(pauseTimer); pause = null; document.querySelector('.rest')?.remove(); const m = document.querySelector('.mini [data-pause]'); if (m) m.textContent = ''; }
 
 function zeichnePause() {
   if (!pause) return;
@@ -1155,6 +1221,13 @@ function zeichnePause() {
     return;
   }
   let el = document.querySelector('.rest');
+  // Die Pausen-Leiste nur im geöffneten Training zeigen. Außerhalb läuft die Pause weiter und steht in der Mini-Leiste.
+  if (!aktiv || minimiert || !$w) {
+    el?.remove();
+    const m = document.querySelector('.mini [data-pause]');
+    if (m) m.textContent = `⏱ ${fmtDauer(rest + 999)}`;
+    return;
+  }
   if (!el) {
     el = document.createElement('div');
     el.className = 'rest';
@@ -1290,6 +1363,11 @@ $app.addEventListener('click', (e) => {
     const daten = wrap?.dataset.karte ? JSON.parse(wrap.dataset.karte) : null;
     const m = teil.dataset.muskel;
     wrap.querySelectorAll('.mk-teil').forEach((p) => p.classList.toggle('mk-sel', p.dataset.muskel === m));
+    if (info && wrap.dataset.rang) {
+      const r = JSON.parse(wrap.dataset.rang)[m];
+      info.innerHTML = r ? `<b style="color:var(--text)">${esc(m)}</b> · <b style="color:${r.farbe}">${esc(r.rang)}</b> · ${esc(r.ueb)}` : `<b style="color:var(--text)">${esc(m)}</b> · noch kein Rang`;
+      return;
+    }
     if (info && daten) info.innerHTML = `<b style="color:var(--text)">${m}</b> · ${daten.erh[m]}% erholt · ${fmt(daten.saetze[m] || 0)} Sätze diese Woche`;
     return;
   }
@@ -1301,6 +1379,7 @@ $app.addEventListener('click', (e) => {
   if (a === 'neue-routine') routineBearbeiten(null);
   if (a === 'training') zeigeTraining(id);
   if (a === 'uebung') zeigeUebung(id);
+  if (a === 'zum-profil') { tab = 'profil'; render(); }
   if (a === 'eigene-uebung') eigeneUebungErstellen();
   if (a === 'filter') { filterMuskel = b.dataset.m || null; render(); }
   if (a === 'karte') { karteModus = b.dataset.m; seiteStart(); }
