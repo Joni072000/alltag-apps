@@ -68,9 +68,10 @@ const ICON = {
 function sheet(html, onMount, onDismiss) {
   const bd = document.createElement('div');
   bd.className = 'backdrop';
-  bd.innerHTML = `<div class="sheet"><div class="grabber"></div>${html}</div>`;
+  bd.innerHTML = `<div class="sheet"><div class="sheet-top"><div class="grabber"></div><button class="sheet-x" type="button" aria-label="Schließen">×</button></div>${html}</div>`;
   const close = () => bd.remove();
   bd.addEventListener('click', (e) => { if (e.target === bd) { close(); onDismiss?.(); } });
+  bd.querySelector('.sheet-x').addEventListener('click', () => { close(); onDismiss?.(); });
   document.body.appendChild(bd);
   onMount?.(bd.querySelector('.sheet'), close);
   return close;

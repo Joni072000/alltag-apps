@@ -130,8 +130,11 @@ h1, h2, h3 { margin: 0; letter-spacing: -.02em; }
 
 /* ---------- Sheets / Modals ---------- */
 .backdrop { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 50; display: flex; align-items: flex-end; justify-content: center; animation: fade .15s; }
-.sheet { background: var(--bg2); width: 100%; max-width: 560px; max-height: 92dvh; overflow-y: auto; border-radius: 22px 22px 0 0; padding: 10px 16px calc(20px + var(--safe-b)); animation: up .22s cubic-bezier(.2,.9,.3,1); border-top: 1px solid var(--line); }
+.sheet { background: var(--bg2); width: 100%; max-width: 560px; max-height: calc(100dvh - var(--safe-t) - 20px); overflow-y: auto; border-radius: 22px 22px 0 0; padding: 10px 16px calc(20px + var(--safe-b)); animation: up .22s cubic-bezier(.2,.9,.3,1); border-top: 1px solid var(--line); }
 .sheet .grabber { width: 40px; height: 5px; border-radius: 9px; background: var(--line); margin: 0 auto 14px; }
+/* Immer sichtbarer Schließen-Knopf oben rechts, bleibt beim Scrollen stehen */
+.sheet-top { position: sticky; top: -10px; z-index: 5; margin: -10px -16px 0; padding: 10px 16px 0; background: var(--bg2); }
+.sheet-x { position: absolute; right: 12px; top: 8px; width: 34px; height: 34px; border: 0; border-radius: 50%; background: var(--card2); color: var(--text); font-size: 20px; line-height: 1; display: grid; place-items: center; }
 .sheet h2 { font-size: 20px; font-weight: 800; margin-bottom: 14px; }
 .sheet-actions { display: flex; gap: 8px; margin-top: 18px; }
 .sheet-actions .btn { flex: 1; }
