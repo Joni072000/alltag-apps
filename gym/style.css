@@ -176,7 +176,8 @@ h1, h2, h3 { margin: 0; letter-spacing: -.02em; }
 .set.done { background: rgba(61,220,132,.12); }
 .set .nr { width: 30px; height: 30px; border-radius: 8px; border: 0; background: var(--card2); font-weight: 800; font-size: 13px; }
 .set .nr.warm { color: #FFB54A; }
-.set .prev { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.set .prev { font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; background: none; border: 0; padding: 6px 0; text-align: left; font-variant-numeric: tabular-nums; }
+button.prev:active { color: var(--accent2); }
 .set input { width: 100%; text-align: center; background: var(--card2); border: 1px solid transparent; border-radius: 9px; padding: 7px 2px; font-weight: 700; font-variant-numeric: tabular-nums; outline: none; }
 .set input:focus { border-color: var(--accent); }
 .set input::placeholder { color: #5C6477; font-weight: 600; }
@@ -273,3 +274,14 @@ h1, h2, h3 { margin: 0; letter-spacing: -.02em; }
 .rang-name { font-weight: 800; font-size: 13px; }
 .mini-pause { font-size: 13px; background: rgba(255,255,255,.2); padding: 3px 8px; border-radius: 99px; }
 .mini-pause:empty { display: none; }
+
+/* Letztes Mal (im Training) */
+.last-time { background: var(--card2); border-radius: 10px; padding: 8px 10px; margin: 0 0 10px; }
+.last-time.neu { font-size: 12px; color: var(--muted); }
+.lt-kopf { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--accent2); margin-bottom: 4px; }
+.lt-saetze { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.lt-saetze span:not(:last-child)::after { content: '·'; margin-left: 10px; color: var(--muted); font-weight: 400; }
+
+/* Fortschritt */
+.fs-wahl { display: grid; gap: 6px; margin-bottom: 4px; }
+.fs-wahl select { width: 100%; background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 11px 12px; font-weight: 700; }

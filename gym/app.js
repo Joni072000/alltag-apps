@@ -20,7 +20,8 @@ const S = {
   pushStunde: 18, pushTage: 2, pushRueckblick: true,
 };
 let karteModus = 'erholung';          // Muskelkarte auf der Startseite
-let verlaufAnsicht = 'liste';         // 'liste' | 'rueckblick'
+let verlaufAnsicht = 'liste';         // 'liste' | 'rueckblick' | 'fortschritt'
+let fsUeb = null, fsWert = 'max';    // Fortschritt-Diagramm
 let rbArt = 'woche', rbVersatz = 0;   // Rückblick
 let trainings = [];      // neueste zuerst
 let kalTermine = [];     // Termine aus dem Kalender (für „heute geplant“)
@@ -110,7 +111,7 @@ function berechne() {
         vol += eff * (s.wdh || 0);
       }
       const p = (proUeb[ex.id] ||= { einheiten: [], best1rm: 0, bestKg: 0, bestWdh: 0, bestZeit: 0 });
-      p.einheiten.push({ datum: t.starts_at, trainingId: t.id, best1rm: b1, saetze: ex.saetze.filter((s) => s.done), vol, zeit: bZeit });
+      p.einheiten.push({ datum: t.starts_at, trainingId: t.id, best1rm: b1, bestKg: bKg, bestWdh: bWdh, saetze: ex.saetze.filter((s) => s.done), vol, zeit: bZeit });
       p.best1rm = Math.max(p.best1rm, b1);
       p.bestZeit = Math.max(p.bestZeit, bZeit);
       if (bKg > p.bestKg || (bKg === p.bestKg && bWdh > p.bestWdh)) { p.bestKg = bKg; p.bestWdh = bWdh; }
@@ -172,11 +173,16 @@ function erholung() {
 }
 
 function letzteSaetze(exId) {
+  return letzteEinheit(exId)?.saetze || [];
+}
+
+/** Letztes gespeichertes Training mit dieser Übung: { datum, saetze } */
+function letzteEinheit(exId) {
   for (const t of trainings) {
     const ex = (t.data?.uebungen || []).find((e) => e.id === exId);
-    if (ex) return ex.saetze.filter((s) => s.done);
+    if (ex) return { datum: t.starts_at, saetze: ex.saetze.filter((s) => s.done) };
   }
-  return [];
+  return null;
 }
 
 // ---------- Daten laden / speichern ---------------------------
@@ -347,9 +353,11 @@ function seiteVerlauf() {
   let html = `<div class="page-head"><h1>Verlauf</h1></div>
     <div class="seg" style="margin-bottom:16px">
       <button data-a="verlauf-ansicht" data-v="liste" class="${verlaufAnsicht === 'liste' ? 'on' : ''}">Trainings</button>
+      <button data-a="verlauf-ansicht" data-v="fortschritt" class="${verlaufAnsicht === 'fortschritt' ? 'on' : ''}">Fortschritt</button>
       <button data-a="verlauf-ansicht" data-v="rueckblick" class="${verlaufAnsicht === 'rueckblick' ? 'on' : ''}">Rückblick</button>
     </div>`;
   if (verlaufAnsicht === 'rueckblick') { $app.innerHTML = html + rueckblickHtml(); return; }
+  if (verlaufAnsicht === 'fortschritt') { $app.innerHTML = html + fortschrittHtml(); return; }
   if (!trainings.length) {
     html += `<div class="empty">Noch keine Trainings. Dein erstes Training erscheint hier.</div>`;
   } else {
@@ -365,6 +373,71 @@ function seiteVerlauf() {
     }
   }
   $app.innerHTML = html;
+}
+
+// ---------- Fortschritt (Diagramme) --------------------------
+/** Name/Typ einer Übung aus alten Trainings (falls eigene Übung gelöscht wurde) */
+function uebAusTrainings(id) {
+  for (const t of trainings) { const ex = (t.data?.uebungen || []).find((e) => e.id === id); if (ex) return ex; }
+  return { name: 'Übung' };
+}
+
+const FS_WERTE = {
+  max: { name: 'Max.', titel: 'Geschätztes Maximum', einheit: 'kg', wert: (e) => e.best1rm },
+  kg: { name: 'Gewicht', titel: 'Schwerster Satz', einheit: 'kg', wert: (e) => e.bestKg },
+  wdh: { name: 'Wdh.', titel: 'Wiederholungen im schwersten Satz', einheit: 'Wdh', wert: (e) => e.bestWdh },
+  vol: { name: 'Volumen', titel: 'Volumen pro Training', einheit: 'kg', wert: (e) => Math.round(e.vol) },
+};
+
+function fortschrittHtml() {
+  const liste = Object.entries(stats.proUeb)
+    .filter(([, p]) => p.einheiten.length)
+    .map(([id, p]) => ({ id, ueb: findUeb(id, uebAusTrainings(id)), p, zuletzt: p.einheiten.at(-1).datum }))
+    .sort((a, b) => new Date(b.zuletzt) - new Date(a.zuletzt));
+  if (!liste.length) return `<div class="empty">Sobald du ein Training gespeichert hast, siehst du hier deinen Fortschritt.</div>`;
+  if (!fsUeb || !stats.proUeb[fsUeb]) fsUeb = liste[0].id;
+  const { ueb, p } = liste.find((x) => x.id === fsUeb);
+  const zeit = ueb.typ === 'zeit', koerper = ueb.typ === 'koerper';
+  const erlaubt = zeit ? [] : koerper ? ['wdh', 'kg', 'max'] : ['max', 'kg', 'wdh', 'vol'];
+  if (!zeit && !erlaubt.includes(fsWert)) fsWert = erlaubt[0];
+  const def = zeit ? { titel: 'Beste Zeit', einheit: 's', wert: (e) => e.zeit } : FS_WERTE[fsWert];
+  const einheiten = p.einheiten.slice(-30);
+  const punkte = einheiten.map((e) => ({ x: e.datum, y: def.wert(e) || 0 }));
+  const erster = punkte[0]?.y || 0, jetzt = punkte.at(-1)?.y || 0, bester = Math.max(...punkte.map((x) => x.y));
+  const diff = jetzt - erster;
+  const einh = def.einheit === 'kg' ? ' kg' : def.einheit === 's' ? ' s' : '';
+
+  // Gesamtvolumen der letzten 8 Wochen
+  const wochen = [], labels = [];
+  const ws0 = wochenStart(new Date());
+  for (let k = 7; k >= 0; k--) {
+    const von = new Date(ws0); von.setDate(von.getDate() - 7 * k);
+    const bis = new Date(von); bis.setDate(bis.getDate() + 7);
+    const r = auswerten(von, bis);
+    wochen.push(Math.round(r.volumen / 100) / 10);
+    labels.push(k === 0 ? 'jetzt' : fmtDatum(von, { day: 'numeric', month: 'numeric' }));
+  }
+
+  return `
+    <label class="fs-wahl"><span class="muted small">Übung</span>
+      <select data-f="fs-ueb">${liste.map((x) => `<option value="${esc(x.id)}" ${x.id === fsUeb ? 'selected' : ''}>${esc(x.ueb.name)} (${x.p.einheiten.length}×)</option>`).join('')}</select>
+    </label>
+    ${erlaubt.length ? `<div class="pills">${erlaubt.map((k) => `<button class="pill ${k === fsWert ? 'on' : ''}" data-a="fs-wert" data-v="${k}">${FS_WERTE[k].name}</button>`).join('')}</div>` : ''}
+    <div class="card">
+      <div class="row" style="justify-content:space-between;align-items:baseline;margin-bottom:6px">
+        <b>${def.titel}</b>
+        ${punkte.length > 1 ? `<span class="delta ${diff > 0 ? 'up' : diff < 0 ? 'down' : ''}">${diff > 0 ? '▲ +' : diff < 0 ? '▼ ' : '±'}${fmt(diff)}${einh}</span>` : ''}
+      </div>
+      ${chartSvg(punkte, def.einheit)}
+    </div>
+    <div class="stats3" style="margin-top:10px">
+      <div class="stat"><b class="num">${fmt(jetzt)}${einh}</b><span>Zuletzt</span></div>
+      <div class="stat"><b class="num">${fmt(bester)}${einh}</b><span>Bestwert</span></div>
+      <div class="stat"><b class="num">${p.einheiten.length}</b><span>Einheiten</span></div>
+    </div>
+    <button class="btn btn-ghost" style="width:100%;margin-top:10px" data-a="uebung" data-id="${esc(fsUeb)}">Alle Einheiten dieser Übung ›</button>
+    <div class="section-title">Gesamtvolumen pro Woche (t)</div>
+    <div class="card">${balkenSvg(wochen, labels)}</div>`;
 }
 
 // ---------- Wochen- und Monatsrückblick ----------------------
@@ -801,7 +874,7 @@ function chartSvg(punkte, einheit = 'kg') {
   const ticks = [0, 0.5, 1].map((f) => min + f * (max - min));
   return `<svg class="chart" viewBox="0 0 ${W} ${H}">
     <defs><linearGradient id="chartFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#A48BFF" stop-opacity=".35"/><stop offset="1" stop-color="#A48BFF" stop-opacity="0"/></linearGradient></defs>
-    ${ticks.map((v) => `<line class="grid" x1="${pl}" x2="${W - pr}" y1="${y(v)}" y2="${y(v)}"/><text class="lbl" x="${pl - 6}" y="${y(v) + 3}" text-anchor="end">${fmt(v, 0)}</text>`).join('')}
+    ${ticks.map((v) => `<line class="grid" x1="${pl}" x2="${W - pr}" y1="${y(v)}" y2="${y(v)}"/><text class="lbl" x="${pl - 6}" y="${y(v) + 3}" text-anchor="end">${fmt(v, max - min < 6 ? 1 : 0)}</text>`).join('')}
     <path class="area" d="${flaeche}"/><path class="line" d="${pfad}"/>
     ${punkte.map((p, i) => `<circle class="dot" cx="${x(i)}" cy="${y(p.y)}" r="3.5"/>`).join('')}
     <text class="lbl" x="${pl}" y="${H - 6}">${fmtDatum(punkte[0].x, { day: 'numeric', month: 'short' })}</text>
@@ -1044,7 +1117,7 @@ function satzZeile(ex, s, i) {
     : `<input inputmode="decimal" data-f="kg" value="${s.kg}" placeholder="${p ? fmt(p.kg) : (ueb.typ === 'koerper' ? '0' : 'kg')}">`;
   return `<div class="set ${s.done ? 'done' : ''}" data-i="${i}">
     <button class="nr ${s.warm ? 'warm' : ''}" data-a="satz-menu">${s.warm ? 'W' : nr}</button>
-    <span class="prev">${p ? satzText(ueb, p) : '–'}</span>
+    ${p ? `<button class="prev" data-a="prev-uebernehmen" aria-label="Werte vom letzten Mal übernehmen">${satzText(ueb, p)}</button>` : '<span class="prev">–</span>'}
     ${kgFeld}
     <input inputmode="numeric" data-f="wdh" value="${s.wdh}" placeholder="${p ? p.wdh : (ueb.typ === 'zeit' ? 's' : 'Wdh')}">
     <button class="chk" data-a="check" aria-label="Satz abhaken">${ICON.check}</button>
@@ -1057,11 +1130,23 @@ function uebungKarte(ex) {
   return `<div class="ex-card" data-ex="${ex.key}">
     <div class="ex-head"><h3 class="grow ellipsis" data-a="ex-info">${esc(ueb.name)}</h3>
       <button class="icon-btn" data-a="ex-menu" aria-label="Optionen">⋯</button></div>
+    ${letztesMalHtml(ex, ueb)}
     ${ex.zeigNotiz || ex.notiz ? `<textarea class="ex-note" rows="1" data-f="notiz" placeholder="Notiz …">${esc(ex.notiz)}</textarea>` : ''}
     <div class="sets-head"><span>Satz</span><span>Vorher</span><span>${kgKopf}</span><span>${ueb.typ === 'zeit' ? 'Sek' : 'Wdh'}</span><span></span></div>
     <div data-saetze>${ex.saetze.map((s, i) => satzZeile(ex, s, i)).join('')}</div>
     <button class="add-set" data-a="satz-plus">+ Satz hinzufügen</button>
   </div>`;
+}
+
+function letztesMalHtml(ex, ueb) {
+  const l = letzteEinheit(ex.id);
+  if (!l) return `<div class="last-time neu">Erstes Mal – noch keine Werte vom letzten Training</div>`;
+  const tage = Math.round((new Date().setHours(0, 0, 0, 0) - new Date(l.datum).setHours(0, 0, 0, 0)) / 864e5);
+  const wann = tage <= 0 ? 'heute' : tage === 1 ? 'gestern' : tage < 7 ? `vor ${tage} Tagen` : fmtDatum(l.datum);
+  const arbeit = l.saetze.filter((s) => !s.warm);
+  const zeig = arbeit.length ? arbeit : l.saetze;
+  return `<div class="last-time"><div class="lt-kopf">Letztes Mal · ${wann}</div>
+    <div class="lt-saetze">${zeig.map((s) => `<span>${satzText(ueb, s)}</span>`).join('')}</div></div>`;
 }
 
 let $w = null, uhrTimer = null;
@@ -1148,6 +1233,12 @@ async function trainingKlick(e) {
   if (a === 'ex-menu') { uebungMenue(ex); return; }
 
   const zeile = b.closest('[data-i]'); const i = +zeile.dataset.i; const s = ex.saetze[i];
+  if (a === 'prev-uebernehmen') {
+    const p = prevFuer(ex, i); if (!p || s.done) return;
+    if (ex.typ !== 'zeit' && findUeb(ex.id, ex).typ !== 'zeit') s.kg = String(p.kg ?? '').replace('.', ',');
+    s.wdh = String(p.wdh ?? '');
+    sichern(); renderTraining(); return;
+  }
   if (a === 'satz-menu') { satzMenue(ex, i); return; }
   if (a === 'check') {
     const ueb = findUeb(ex.id, ex);
@@ -1394,11 +1485,16 @@ $app.addEventListener('click', (e) => {
   if (a === 'karte') { karteModus = b.dataset.m; seiteStart(); }
   if (a === 'verlauf-ansicht') { verlaufAnsicht = b.dataset.v; rbVersatz = 0; render(); }
   if (a === 'rb-art') { rbArt = b.dataset.v; rbVersatz = 0; seiteVerlauf(); }
+  if (a === 'fs-wert') { fsWert = b.dataset.v; seiteVerlauf(); }
   if (a === 'rb-nav') { rbVersatz = Math.min(0, rbVersatz + Number(b.dataset.v)); seiteVerlauf(); }
   if (a === 'push-an') pushAn(b);
   if (a === 'push-aus') pushAus();
   if (a === 'push-test') pushTest(b);
   if (a === 'logout') core.logout();
+});
+
+$app.addEventListener('change', (e) => {
+  if (e.target.dataset.f === 'fs-ueb') { fsUeb = e.target.value; seiteVerlauf(); }
 });
 
 $app.addEventListener('input', (e) => {
