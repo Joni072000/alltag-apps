@@ -358,6 +358,28 @@ async function tagwerkErinnerung(userId, tz) {
   return null;
 }
 
+// ---------- Bund: morgens Tagesbefehl, abends Erinnerung ----------
+async function bundErinnerung(userId, tz) {
+  const { data: prof } = await sb.from('profiles').select('settings').eq('id', userId).maybeSingle();
+  const st = prof?.settings || {};
+  if (!st.bund_aktiv || st.bund_push_aus || !st.bund_start) return null;
+  const j = jetztIn(tz);
+  const tagNr = tageZwischen(st.bund_start, j.heute) + 1;
+  if (tagNr < 1) return null;
+  const test = tagNr === 1 || (tagNr - 1) % 14 === 0;
+  if (j.isoTag === 7 && !test) return null;            // Sonntag ist Ruhetag
+  if (j.stunde === Number(st.bund_push_morgen ?? 7)) {
+    return { title: test ? 'Bund ⏱️ Probe-Test heute' : 'Bund 🪖 Tagesbefehl', body: test ? 'Heute wird gemessen: Pendellauf, Klimmhang, 1000 m.' : `Tag ${tagNr}: Deine Challenge für heute steht. Antreten!`, url: '../bund/', tag: 'bund-morgen' };
+  }
+  if (j.stunde === Number(st.bund_push_abend ?? 19)) {
+    const { data: erg } = await sb.from('events').select('data').eq('user_id', userId).eq('app', 'bund').eq('kind', 'ergebnis')
+      .gte('starts_at', new Date(Date.now() - 2 * 864e5).toISOString());
+    if ((erg || []).some((e) => e.data?.datum === j.heute)) return null;
+    return { title: 'Bund ⚠️', body: 'Deine Challenge ist noch offen. Bis Mitternacht – sonst gibt es eine Strafe.', url: '../bund/', tag: 'bund-abend' };
+  }
+  return null;
+}
+
 // ---------- Einstieg ----------
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS });
@@ -400,6 +422,10 @@ Deno.serve(async (req) => {
         if (n2) gesendet += await senden(liste, n2, 'neustart');
         const n3 = await tagwerkErinnerung(userId, liste[0].zeitzone || 'Europe/Berlin');
         if (n3) gesendet += await senden(liste, n3, 'tagwerk');
+        try {
+          const n4 = await bundErinnerung(userId, liste[0].zeitzone || 'Europe/Berlin');
+          if (n4) gesendet += await senden(liste, n4, 'bund');
+        } catch (e) { console.error('Bund-Erinnerung', e); }
       }
       return json({ nutzer: proUser.size, gesendet });
     }

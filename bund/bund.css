@@ -1,0 +1,41 @@
+/* Bund – ergänzt ../gym/style.css (Suite-Stil in Oliv) */
+:root { --accent: #5E7A35; --accent2: #A5C46A; --oliv: #4C6B2F; --oliv2: #2B3D1C; --khaki: #C9B26B; }
+.btn-primary { background: linear-gradient(135deg, #6E8F3E, #3F5A24); box-shadow: 0 6px 20px -8px rgba(110,143,62,.8); }
+
+.bund-streak { font-size: 14px; font-weight: 800; color: var(--text); padding: 6px 12px; }
+.bund-hero { border-radius: 20px; padding: 20px; background: linear-gradient(140deg, var(--oliv), var(--oliv2)); box-shadow: 0 12px 30px -16px rgba(94,122,53,.9); }
+.bund-hero.ruhe { background: linear-gradient(140deg, #3A4255, #222838); box-shadow: none; }
+.bund-hero.test { background: linear-gradient(140deg, #8A7533, #4A3E17); }
+.bund-label { font-size: 12px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; opacity: .85; }
+.bund-teile { margin-top: 10px; }
+.bund-teil + .bund-teil { border-top: 1px solid rgba(255,255,255,.12); }
+.bund-teil-kopf { display: flex; align-items: center; gap: 10px; width: 100%; background: none; border: 0; padding: 9px 0; text-align: left; font-size: 21px; font-weight: 900; letter-spacing: -.01em; line-height: 1.2; }
+.bund-wie { font-size: 12px; font-weight: 700; background: rgba(255,255,255,.14); border-radius: 99px; padding: 4px 9px; flex: none; }
+.bund-info { font-size: 14px; line-height: 1.45; opacity: .9; padding: 0 0 10px; }
+.bund-haupt { width: 100%; border: 0; border-radius: 14px; padding: 15px; font-weight: 800; font-size: 16px; background: #fff; color: #1E2A13; }
+.bund-haupt:active { transform: scale(.98); }
+.bund-link { display: block; margin: 10px auto 0; background: none; border: 0; font-size: 13px; font-weight: 600; opacity: .8; padding: 4px 10px; }
+.bund-erledigt { border-radius: 14px; padding: 12px 14px; background: rgba(61,220,132,.18); border: 1px solid rgba(61,220,132,.4); }
+.bund-erledigt.bund-verpasst { background: rgba(255,77,109,.16); border-color: rgba(255,77,109,.4); }
+.bund-warn { margin-bottom: 12px; border-color: rgba(255,177,74,.4); background: rgba(255,177,74,.1); font-size: 14px; font-weight: 600; }
+
+.bund-strafe { background: var(--card); border-radius: 16px; padding: 14px; display: flex; gap: 12px; align-items: center; margin-bottom: 10px; border: 1px solid rgba(255,77,109,.25); }
+.bicon { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; font-size: 19px; flex: none; background: rgba(255,77,109,.14); }
+
+.bund-balken { height: 6px; border-radius: 99px; background: var(--card2); overflow: hidden; margin: 6px 0; }
+.bund-balken i { display: block; height: 100%; border-radius: inherit; background: #8BC34A; }
+.bft-zeile + .bft-zeile { margin-top: 14px; }
+.bft-zeile .row { font-size: 14px; font-weight: 600; }
+.pill.bund-ok { background: rgba(61,220,132,.16); color: var(--ok); }
+
+.heat { display: grid; grid-template-columns: repeat(12, 1fr); grid-template-rows: repeat(7, auto); grid-auto-flow: column; gap: 4px; }
+.heat span { aspect-ratio: 1; border-radius: 5px; background: var(--card2); }
+.bund-legende { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 12px; font-size: 12px; color: var(--muted); }
+.bund-legende i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.bund-tab { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+.bund-tab th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 10px 12px; background: var(--card2); }
+.bund-tab td { padding: 10px 12px; border-top: 1px solid var(--line); }
+
+.konfetti { position: fixed; inset: 0; pointer-events: none; z-index: 120; overflow: hidden; }
+.konfetti i { position: absolute; top: -12px; width: 8px; height: 14px; border-radius: 2px; animation: fallen 1.8s ease-in forwards; }
+@keyframes fallen { to { transform: translateY(110vh) rotate(720deg); opacity: .6; } }

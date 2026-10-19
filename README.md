@@ -9,6 +9,7 @@ Eigene Apps für den Alltag – einzeln nutzbar, aber über eine gemeinsame Supa
 | Kalorien-Tracker | `kalorien/` | ✅ |
 | Neustart | `neustart/` | ✅ |
 | Tagwerk | `tagwerk/` | ✅ |
+| Bund | `bund/` | ✅ |
 
 ## Aufbau
 - `shared/core.js` – Login und Datenzugriff für alle Apps (ein Konto für alles)
