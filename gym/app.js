@@ -143,23 +143,31 @@ function streakWochen() {
   return n;
 }
 
+/**
+ * Erholung pro Muskel in % (100 = voll erholt).
+ * Jeder Arbeitssatz erzeugt Ermüdung: Hauptmuskel 1 Satz, Nebenmuskel ½ Satz.
+ * ERHOLUNG_VOLL_SAETZE effektive Sätze = 100 % erschöpft; die Ermüdung eines
+ * Trainings baut sich über ERHOLUNG_STUNDEN linear ab.
+ */
+const ERHOLUNG_VOLL_SAETZE = 10;
+const ERHOLUNG_STUNDEN = 72;
 function erholung() {
-  const jetzt = Date.now(), res = {};
-  for (const m of MUSKELN) {
-    let zeit = null, haupt = false;
-    for (const t of trainings) {
-      for (const ex of t.data?.uebungen || []) {
-        const ueb = findUeb(ex.id, ex);
-        const n = (ex.saetze || []).filter((s) => s.done && !s.warm).length;
-        if (!n) continue;
-        if (ueb.muskel === m) { zeit = new Date(t.ends_at || t.starts_at).getTime(); haupt = true; break; }
-        if ((ueb.neben || []).includes(m) && !zeit) { zeit = new Date(t.ends_at || t.starts_at).getTime(); }
-      }
-      if (zeit) break;
+  const jetzt = Date.now(), last = {};
+  for (const m of MUSKELN) last[m] = 0;
+  for (const t of trainings) {
+    const std = (jetzt - new Date(t.ends_at || t.starts_at).getTime()) / 3.6e6;
+    const rest = 1 - Math.max(0, std) / ERHOLUNG_STUNDEN;
+    if (!(rest > 0)) continue; // auch bei ungültigem Datum (NaN)
+    for (const ex of t.data?.uebungen || []) {
+      const ueb = findUeb(ex.id, ex);
+      const n = (ex.saetze || []).filter((s) => s.done && !s.warm).length;
+      if (!n || !ueb) continue;
+      if (MUSKELN.includes(ueb.muskel)) last[ueb.muskel] += n * rest;
+      for (const nm of ueb.neben || []) if (MUSKELN.includes(nm) && nm !== ueb.muskel) last[nm] += n * 0.5 * rest;
     }
-    const std = zeit ? (jetzt - zeit) / 3.6e6 : Infinity;
-    res[m] = Math.round(Math.min(100, (std / (haupt ? 72 : 48)) * 100));
   }
+  const res = {};
+  for (const m of MUSKELN) res[m] = Math.round(100 - Math.min(100, (last[m] / ERHOLUNG_VOLL_SAETZE) * 100));
   return res;
 }
 
