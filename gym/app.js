@@ -21,7 +21,7 @@ const S = {
 };
 let karteModus = 'erholung';          // Muskelkarte auf der Startseite
 let verlaufAnsicht = 'liste';         // 'liste' | 'rueckblick' | 'fortschritt'
-let fsUeb = null, fsWert = 'max';    // Fortschritt-Diagramm
+let fsUeb = null, fsWert = 'kg';   // Fortschritt-Diagramm
 let rbArt = 'woche', rbVersatz = 0;   // Rückblick
 let trainings = [];      // neueste zuerst
 let kalTermine = [];     // Termine aus dem Kalender (für „heute geplant“)
@@ -382,12 +382,17 @@ function uebAusTrainings(id) {
   return { name: 'Übung' };
 }
 
+// Fortschritt zeigt nur echte Bestleistungen (bester Satz je Training), keine berechneten Werte
 const FS_WERTE = {
-  max: { name: 'Max.', titel: 'Geschätztes Maximum', einheit: 'kg', wert: (e) => e.best1rm },
-  kg: { name: 'Gewicht', titel: 'Schwerster Satz', einheit: 'kg', wert: (e) => e.bestKg },
-  wdh: { name: 'Wdh.', titel: 'Wiederholungen im schwersten Satz', einheit: 'Wdh', wert: (e) => e.bestWdh },
-  vol: { name: 'Volumen', titel: 'Volumen pro Training', einheit: 'kg', wert: (e) => Math.round(e.vol) },
+  kg: { name: 'Gewicht', titel: 'Bestleistung: schwerster Satz', einheit: 'kg', wert: (e) => e.bestKg },
+  wdh: { name: 'Wdh.', titel: 'Bestleistung: Wiederholungen', einheit: 'Wdh', wert: (e) => e.bestWdh },
 };
+/** "100 kg × 5" für den besten Satz einer Einheit */
+function bestSatzText(ueb, e) {
+  if (ueb.typ === 'zeit') return `${e.zeit} s`;
+  if (ueb.typ === 'koerper') return e.bestKg ? `+${fmt(e.bestKg)} kg × ${e.bestWdh}` : `${e.bestWdh} Wdh.`;
+  return `${fmt(e.bestKg)} kg × ${e.bestWdh}`;
+}
 
 function fortschrittHtml() {
   const liste = Object.entries(stats.proUeb)
@@ -398,13 +403,14 @@ function fortschrittHtml() {
   if (!fsUeb || !stats.proUeb[fsUeb]) fsUeb = liste[0].id;
   const { ueb, p } = liste.find((x) => x.id === fsUeb);
   const zeit = ueb.typ === 'zeit', koerper = ueb.typ === 'koerper';
-  const erlaubt = zeit ? [] : koerper ? ['wdh', 'kg', 'max'] : ['max', 'kg', 'wdh', 'vol'];
+  const erlaubt = zeit ? [] : koerper ? (p.bestKg ? ['wdh', 'kg'] : ['wdh']) : ['kg', 'wdh'];
   if (!zeit && !erlaubt.includes(fsWert)) fsWert = erlaubt[0];
-  const def = zeit ? { titel: 'Beste Zeit', einheit: 's', wert: (e) => e.zeit } : FS_WERTE[fsWert];
+  const def = zeit ? { titel: 'Bestleistung: Zeit', einheit: 's', wert: (e) => e.zeit } : FS_WERTE[fsWert];
   const einheiten = p.einheiten.slice(-30);
   const punkte = einheiten.map((e) => ({ x: e.datum, y: def.wert(e) || 0 }));
-  const erster = punkte[0]?.y || 0, jetzt = punkte.at(-1)?.y || 0, bester = Math.max(...punkte.map((x) => x.y));
+  const erster = punkte[0]?.y || 0, jetzt = punkte.at(-1)?.y || 0;
   const diff = jetzt - erster;
+  const allzeit = zeit ? `${p.bestZeit} s` : bestSatzText(ueb, { bestKg: p.bestKg, bestWdh: p.bestWdh });
   const einh = def.einheit === 'kg' ? ' kg' : def.einheit === 's' ? ' s' : '';
 
   // Gesamtvolumen der letzten 8 Wochen
@@ -422,7 +428,7 @@ function fortschrittHtml() {
     <label class="fs-wahl"><span class="muted small">Übung</span>
       <select data-f="fs-ueb">${liste.map((x) => `<option value="${esc(x.id)}" ${x.id === fsUeb ? 'selected' : ''}>${esc(x.ueb.name)} (${x.p.einheiten.length}×)</option>`).join('')}</select>
     </label>
-    ${erlaubt.length ? `<div class="pills">${erlaubt.map((k) => `<button class="pill ${k === fsWert ? 'on' : ''}" data-a="fs-wert" data-v="${k}">${FS_WERTE[k].name}</button>`).join('')}</div>` : ''}
+    ${erlaubt.length > 1 ? `<div class="pills">${erlaubt.map((k) => `<button class="pill ${k === fsWert ? 'on' : ''}" data-a="fs-wert" data-v="${k}">${FS_WERTE[k].name}</button>`).join('')}</div>` : ''}
     <div class="card">
       <div class="row" style="justify-content:space-between;align-items:baseline;margin-bottom:6px">
         <b>${def.titel}</b>
@@ -431,8 +437,8 @@ function fortschrittHtml() {
       ${chartSvg(punkte, def.einheit)}
     </div>
     <div class="stats3" style="margin-top:10px">
-      <div class="stat"><b class="num">${fmt(jetzt)}${einh}</b><span>Zuletzt</span></div>
-      <div class="stat"><b class="num">${fmt(bester)}${einh}</b><span>Bestwert</span></div>
+      <div class="stat"><b class="num">${bestSatzText(ueb, einheiten.at(-1))}</b><span>Zuletzt bester Satz</span></div>
+      <div class="stat"><b class="num">${allzeit}</b><span>Bestleistung</span></div>
       <div class="stat"><b class="num">${p.einheiten.length}</b><span>Einheiten</span></div>
     </div>
     <button class="btn btn-ghost" style="width:100%;margin-top:10px" data-a="uebung" data-id="${esc(fsUeb)}">Alle Einheiten dieser Übung ›</button>
@@ -618,7 +624,7 @@ function seiteUebungen() {
       return `<button class="list-item" data-a="uebung" data-id="${u.id}">
         ${u.std ? rangBadge(rangVon(u.id), 34) : '<div style="width:34px"></div>'}
         <div class="grow"><div class="ellipsis"><b>${esc(u.name)}</b></div>
-        <div class="muted small">${u.muskel}${p ? ` · ${p.einheiten.length}× · ${u.typ === 'zeit' ? `${p.bestZeit} s` : `Best ${fmt(p.bestKg)} kg × ${p.bestWdh}`}` : ''}</div></div>
+        <div class="muted small">${u.muskel}${p ? ` · ${p.einheiten.length}× · ${u.typ === 'zeit' ? `${p.bestZeit} s` : `Best ${bestSatzText(u, p)}`}` : ''}</div></div>
         <span class="chev">›</span></button>`;
     }).join('') || '<div class="empty">Nichts gefunden.</div>'}</div>`;
 }
@@ -908,7 +914,8 @@ function zeigeUebung(id) {
     }
   }
   const einheiten = p?.einheiten || [];
-  const punkte = einheiten.slice(-20).map((e) => ({ x: e.datum, y: ueb.typ === 'zeit' ? e.zeit : e.best1rm }));
+  const nachWdh = ueb.typ === 'koerper';
+  const punkte = einheiten.slice(-20).map((e) => ({ x: e.datum, y: ueb.typ === 'zeit' ? e.zeit : nachWdh ? e.bestWdh : e.bestKg }));
   const close = sheet(`
     <h2>${esc(ueb.name)}</h2>
     <p class="muted small" style="margin:-8px 0 14px">${ueb.muskel}${ueb.neben?.length ? ' · ' + ueb.neben.join(', ') : ''}</p>
@@ -916,12 +923,12 @@ function zeigeUebung(id) {
     <div class="stats3" style="margin-top:10px">
       ${ueb.typ === 'zeit'
         ? `<div class="stat"><b class="num">${p ? p.bestZeit + ' s' : '–'}</b><span>Beste Zeit</span></div>`
-        : `<div class="stat"><b class="num">${p?.best1rm ? fmt(p.best1rm) : '–'}</b><span>Max. (geschätzt)</span></div>
-           <div class="stat"><b class="num">${p ? fmt(p.bestKg) : '–'}</b><span>Schwerster Satz</span></div>`}
+        : `<div class="stat"><b class="num">${p ? bestSatzText(ueb, p) : '–'}</b><span>Bestleistung</span></div>
+           <div class="stat"><b class="num">${einheiten.length ? bestSatzText(ueb, einheiten.at(-1)) : '–'}</b><span>Zuletzt</span></div>`}
       <div class="stat"><b class="num">${einheiten.length}</b><span>Einheiten</span></div>
     </div>
-    <div class="section-title">${ueb.typ === 'zeit' ? 'Beste Zeit' : 'Geschätztes Maximum'}</div>
-    <div class="card">${chartSvg(punkte, ueb.typ === 'zeit' ? 's' : 'kg')}</div>
+    <div class="section-title">${ueb.typ === 'zeit' ? 'Beste Zeit' : nachWdh ? 'Bestleistung (Wdh.) pro Training' : 'Schwerster Satz pro Training'}</div>
+    <div class="card">${chartSvg(punkte, ueb.typ === 'zeit' ? 's' : nachWdh ? 'Wdh' : 'kg')}</div>
     <div class="section-title">Letzte Einheiten</div>
     ${einheiten.length ? [...einheiten].reverse().slice(0, 10).map((e) => `
       <div class="card"><div class="muted small" style="margin-bottom:4px">${fmtDatum(e.datum)}</div>
